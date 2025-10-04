@@ -4,3 +4,6 @@ models/
 models/
 *.safetensors
 *.pt
+models/
+*.safetensors
+*.pt

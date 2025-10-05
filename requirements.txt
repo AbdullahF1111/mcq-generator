@@ -1,9 +1,10 @@
+streamlit
+torch
 transformers
 sentence-transformers
 spacy
-torch
-pdfplumber
-python-docx
 lmqg
 keybert
-streamlit
+pdfplumber
+python-docx
+numpy==1.26.4

@@ -5,9 +5,10 @@ from src.mcq_pipeline_final_v2 import generate_mcqs_from_text
 import spacy
 from spacy.cli import download
 try:
-    spacy.load("en_core_web_sm")
+    nlp = spacy.load("en_core_web_sm")
 except OSError:
     download("en_core_web_sm")
+    nlp = spacy.load("en_core_web_sm")
 
 
 # ----------------------------

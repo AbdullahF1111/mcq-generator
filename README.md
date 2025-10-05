@@ -16,25 +16,25 @@ It combines question generation, answer extraction, and distractor creation into
 ---
 
 ## 📁 Project Structure
-mcq-generator/
-│
-├── data/ # Example input texts
-│ ├── sample_books.txt
-│ ├── sample_climate.txt
-│ ├── sample_clocks.txt
-│ └── sample_liam.txt
-│
-├── src/ # Core Python logic
-│ └── mcq_pipeline_final_v2.py
-│
-├── notebooks/ # (Optional) Jupyter/Colab demos
-│ └── demo_colab.ipynb
-│
-├── models/ # Saved tokenizer / QG model
-│
-├── requirements.txt # Python dependencies
-├── .gitignore # Ignore unnecessary files
-└── README.md # Project documentation
+- mcq-generator/
+- │
+- ├── data/ # Example input texts
+- │ ├── sample_books.txt
+- │ ├── sample_climate.txt
+- │ ├── sample_clocks.txt
+- │ └── sample_liam.txt
+- │
+- ├── src/ # Core Python logic
+- │ └── mcq_pipeline_final_v2.py
+- │
+- ├── notebooks/ # (Optional) Jupyter/Colab demos
+- │ └── demo_colab.ipynb
+- │
+- ├── models/ # Saved tokenizer / QG model
+- │
+- ├── requirements.txt # Python dependencies
+- ├── .gitignore # Ignore unnecessary files
+- └── README.md # Project documentation
 
 ## 🧠 Model Setup
 -The required models (`lmqg/t5-base-squad-qg`, `google/flan-t5-base`, and `all-MiniLM-L6-v2`)
@@ -57,8 +57,8 @@ for q in results["questions"]:
 ```
 
 ## ⚙️ Installation
-pip install -r requirements.txt
-python -m spacy download en_core_web_sm
+- pip install -r requirements.txt
+- python -m spacy download en_core_web_sm
 
 ## 🧠 Author
 - Abdullah Fahlo

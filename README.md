@@ -56,11 +56,11 @@ for q in results["questions"]:
     print("Correct:", q["answer"])
 ```
 
-⚙️ Installation
+##⚙️ Installation
 pip install -r requirements.txt
 python -m spacy download en_core_web_sm
 
-🧠 Author
+##🧠 Author
 Abdullah Fahlo
 Data Science & AI Student
 📍 Aleppo, Syria

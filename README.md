@@ -36,8 +36,9 @@ mcq-generator/
 ├── .gitignore # Ignore unnecessary files
 └── README.md # Project documentation
 
-python
-نسخ الكود
+## 🧠 Model Setup
+The required models (`lmqg/t5-base-squad-qg`, `google/flan-t5-base`, and `all-MiniLM-L6-v2`)
+are automatically downloaded when you run the notebook or pipeline.
 
 ---
 

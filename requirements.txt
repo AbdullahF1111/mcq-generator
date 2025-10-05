@@ -1,12 +1,11 @@
-streamlit
-torch
-transformers
-sentence-transformers
-spacy
+streamlit==1.38.0
+torch==1.13.0
+transformers==4.26.1
+sentence-transformers==2.2.2
+spacy==3.5.0
 keybert
 pdfplumber
 python-docx
-numpy
-# Use a compatible version of lmqg directly from source (PyPI not updated for Py3.13)
+numpy==1.26.4
 git+https://github.com/asahi417/lm-question-generation.git
-en_core_web_sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.1/en_core_web_sm-3.7.1.tar.gz
+https://www.google.com/search?q=https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.5.0/en_core_web_sm-3.5.0.tar.gz

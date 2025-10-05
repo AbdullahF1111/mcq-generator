@@ -1,12 +1,33 @@
+
+Byte-compiled / cache
+pycache/
+*.py[cod]
+*.pyo
+
+Environment files
+.env
+*.env
+
+Notebooks checkpoints
+.ipynb_checkpoints/
+
+Models and large files
 models/
 *.safetensors
+*.bin
+*.json
 *.pt
-models/
-*.safetensors
-*.pt
-models/
-*.safetensors
-*.pt
-models/
-*.safetensors
-*.pt
+
+OS / Editor files
+.DS_Store
+Thumbs.db
+
+Logs
+*.log
+
+Temporary files
+*.tmp
+*.bak
+
+
+

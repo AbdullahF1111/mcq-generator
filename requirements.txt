@@ -7,5 +7,4 @@ keybert
 pdfplumber
 python-docx
 numpy==1.26.4
-# Use a compatible version of lmqg directly from source (PyPI not updated for Py3.13)
-git+https://github.com/asahi417/lm-question-generation.git
+

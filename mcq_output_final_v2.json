@@ -1,0 +1,276 @@
+{
+  "clocks": {
+    "source_len": 56,
+    "questions": [
+      {
+        "question": "Before clocks, people relied on sundials and what else?",
+        "answer": "water clocks",
+        "options": [
+          "time",
+          "atomic clocks",
+          "the mechanical clock",
+          "water clocks"
+        ],
+        "qtype": "OTHER",
+        "meta": {
+          "pool_used": 20,
+          "lm_suggested": 1
+        }
+      },
+      {
+        "question": "What are the most precise clocks today?",
+        "answer": "atomic clocks",
+        "options": [
+          "water clocks",
+          "time",
+          "atomic clocks",
+          "the mechanical clock"
+        ],
+        "qtype": "OTHER",
+        "meta": {
+          "pool_used": 20,
+          "lm_suggested": 1
+        }
+      },
+      {
+        "question": "Before what did people rely on sundials and water clocks?",
+        "answer": "clocks",
+        "options": [
+          "time",
+          "The invention",
+          "the mechanical clock",
+          "clocks"
+        ],
+        "qtype": "OTHER",
+        "meta": {
+          "pool_used": 20,
+          "lm_suggested": 1
+        }
+      },
+      {
+        "question": "What invention revolutionized timekeeping?",
+        "answer": "mechanical clock",
+        "options": [
+          "clocks",
+          "water clocks",
+          "mechanical clock",
+          "atomic clocks"
+        ],
+        "qtype": "OTHER",
+        "meta": {
+          "pool_used": 20,
+          "lm_suggested": 1
+        }
+      },
+      {
+        "question": "The invention of the mechanical clock revolutionized what?",
+        "answer": "timekeeping",
+        "options": [
+          "clocks",
+          "timekeeping",
+          "mechanical clocks",
+          "atomic clocks"
+        ],
+        "qtype": "OTHER",
+        "meta": {
+          "pool_used": 20,
+          "lm_suggested": 1
+        }
+      }
+    ]
+  },
+  "books": {
+    "source_len": 16,
+    "questions": [
+      {
+        "question": "What is one of the most powerful ways to gain knowledge and expand your imagination?",
+        "answer": "Reading books",
+        "options": [
+          "Reading books",
+          "Inventors.",
+          "books",
+          "knowledge"
+        ],
+        "qtype": "OTHER",
+        "meta": {
+          "pool_used": 4,
+          "lm_suggested": 1
+        }
+      },
+      {
+        "question": "Reading books is one of the most powerful ways to gain what?",
+        "answer": "knowledge",
+        "options": [
+          "books",
+          "your imagination",
+          "knowledge"
+        ],
+        "qtype": "OTHER",
+        "meta": {
+          "pool_used": 4,
+          "lm_suggested": 0
+        }
+      },
+      {
+        "question": "Reading books is one of the most powerful ways to gain knowledge and expand what?",
+        "answer": "imagination",
+        "options": [
+          "imagination",
+          "your imagination",
+          "books",
+          "knowledge"
+        ],
+        "qtype": "OTHER",
+        "meta": {
+          "pool_used": 4,
+          "lm_suggested": 0
+        }
+      }
+    ]
+  },
+  "liam": {
+    "source_len": 42,
+    "questions": [
+      {
+        "question": "Who inspired Samuel Harrison to study nature?",
+        "answer": "Liam",
+        "options": [
+          "The trip",
+          "his friends",
+          "Liam",
+          "their friendship"
+        ],
+        "qtype": "PERSON",
+        "meta": {
+          "pool_used": 14,
+          "lm_suggested": 1
+        }
+      },
+      {
+        "question": "When did Liam and his friends hike through the Rocky Mountains?",
+        "answer": "last summer",
+        "options": [
+          "one morning",
+          "last summer",
+          "The trip",
+          "every year"
+        ],
+        "qtype": "TIME",
+        "meta": {
+          "pool_used": 14,
+          "lm_suggested": 0
+        }
+      },
+      {
+        "question": "What mountains did Liam and his friends hike through last summer?",
+        "answer": "Rocky Mountains",
+        "options": [
+          "a clear lake",
+          "nature",
+          "The trip",
+          "Rocky Mountains"
+        ],
+        "qtype": "LOC",
+        "meta": {
+          "pool_used": 14,
+          "lm_suggested": 1
+        }
+      },
+      {
+        "question": "What did the trip inspire Liam to study?",
+        "answer": "nature",
+        "options": [
+          "a clear lake",
+          "nature",
+          "the sunrise",
+          "the Rocky Mountains"
+        ],
+        "qtype": "OTHER",
+        "meta": {
+          "pool_used": 14,
+          "lm_suggested": 0
+        }
+      },
+      {
+        "question": "Who promised to return to the Rocky Mountains every year?",
+        "answer": "Samuel Harrison",
+        "options": [
+          "Liam",
+          "his friends",
+          "john f. kennedy",
+          "Samuel Harrison"
+        ],
+        "qtype": "PERSON",
+        "meta": {
+          "pool_used": 14,
+          "lm_suggested": 1
+        }
+      }
+    ]
+  },
+  "climate": {
+    "source_len": 46,
+    "questions": [
+      {
+        "question": "What is the long-term rise in Earth's average temperature called?",
+        "answer": "Global warming",
+        "options": [
+          "Earth",
+          "Climate scientists",
+          "the atmosphere",
+          "Global warming"
+        ],
+        "qtype": "OTHER",
+        "meta": {
+          "pool_used": 16,
+          "lm_suggested": 8
+        }
+      },
+      {
+        "question": "What do climate scientists study to understand the rate of change?",
+        "answer": "temperature records, ice cores and other indicators",
+        "options": [
+          "temperature records, ice cores and other indicators",
+          "Global warming",
+          "human activities",
+          "ice cores"
+        ],
+        "qtype": "OTHER",
+        "meta": {
+          "pool_used": 16,
+          "lm_suggested": 1
+        }
+      },
+      {
+        "question": "Global warming is the long-term rise in what's average temperature?",
+        "answer": "Earth",
+        "options": [
+          "Earth",
+          "Climate scientists",
+          "the atmosphere",
+          "human activities"
+        ],
+        "qtype": "OTHER",
+        "meta": {
+          "pool_used": 16,
+          "lm_suggested": 0
+        }
+      },
+      {
+        "question": "What increases greenhouse gas concentrations in the atmosphere?",
+        "answer": "burning fossil fuels",
+        "options": [
+          "Climate scientists",
+          "Earth",
+          "burning fossil fuels",
+          "Global warming"
+        ],
+        "qtype": "OTHER",
+        "meta": {
+          "pool_used": 16,
+          "lm_suggested": 1
+        }
+      }
+    ]
+  }
+}

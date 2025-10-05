@@ -54,11 +54,12 @@ for q in results["questions"]:
     for opt in q["options"]:
         print("-", opt)
     print("Correct:", q["answer"])
+```
+
 ⚙️ Installation
-bash
-نسخ الكود
 pip install -r requirements.txt
 python -m spacy download en_core_web_sm
+
 🧠 Author
 Abdullah Fahlo
 Data Science & AI Student

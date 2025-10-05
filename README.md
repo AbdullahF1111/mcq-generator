@@ -30,8 +30,6 @@ It combines question generation, answer extraction, and distractor creation into
 - ├── notebooks/ # (Optional) Jupyter/Colab demos
 - │ └── demo_colab.ipynb
 - │
-- ├── models/ # Saved tokenizer / QG model
-- │
 - ├── requirements.txt # Python dependencies
 - ├── .gitignore # Ignore unnecessary files
 - └── README.md # Project documentation

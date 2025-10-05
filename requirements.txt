@@ -1,0 +1,9 @@
+transformers
+sentence-transformers
+spacy
+torch
+pdfplumber
+python-docx
+lmqg
+keybert
+streamlit

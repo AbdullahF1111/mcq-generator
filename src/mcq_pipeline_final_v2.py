@@ -161,12 +161,12 @@ def semantic_select(answer: str, candidates: List[str], k: int = NUM_DISTRACTORS
 
 
 def qa_answer_check_and_cleanup(question: str, context: str, answer: str) -> str:
-    ""
+    """
     Use qa_pipe to extract trusted span for the question from context.
     If QA returns a confident non-empty answer, prefer it (cleaned).
     Otherwise, if provided 'answer' appears verbatim in context, keep it.
     Else return empty string (meaning reject this pair).
-    ""
+    """
     try:
         res = qa_pipe(question=question, context=context)
         pred = res.get("answer", "").strip()

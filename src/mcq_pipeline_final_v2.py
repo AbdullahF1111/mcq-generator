@@ -48,7 +48,7 @@ BLACKLIST_WORDS = {"option", "list", "adjectives", "unknown", "true", "false", "
 
 
 def clean_text_generated(txt: str) -> str:
-    ""Basic cleanup of LM outputs: strip, remove weird leading tokens like 'TGlobal' or 'Ġ' chars.""
+    #Basic cleanup of LM outputs: strip, remove weird leading tokens like 'TGlobal' or 'Ġ' chars.
     if not txt:
         return ""
     # remove weird non-alphanumeric prefixes

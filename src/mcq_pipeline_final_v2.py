@@ -1,7 +1,7 @@
 #!pip install -q transformers sentence-transformers spacy pdfplumber python-docx keybert streamlit
-!python -m spacy download en_core_web_sm -q
-!pip install -q lmqg
-!pip install numpy==1.26.4
+#!python -m spacy download en_core_web_sm -q
+#!pip install -q lmqg
+#!pip install numpy==1.26.4
 # mcq_pipeline_final_v2.py
 ""
 Improved MCQ pipeline v2

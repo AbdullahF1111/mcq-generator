@@ -4,11 +4,11 @@
 #!pip install numpy==1.26.4
 # mcq_pipeline_final_v2.py
 ""
-Improved MCQ pipeline v2
+#Improved MCQ pipeline v2
 Save as mcq_pipeline_final_v2.py and run in Colab / local env.
 
 Requirements (example):
-pip install lmqg transformers sentence-transformers spacy torch pdfplumber python-docx
+#pip install lmqg transformers sentence-transformers spacy torch pdfplumber python-docx
 python -m spacy download en_core_web_sm
 ""
 import re

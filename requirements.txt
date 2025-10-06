@@ -1,10 +1,10 @@
 streamlit==1.38.0
-torch==2.8.0
-transformers==4.44.2
-sentence-transformers==2.7.0
-spacy==3.7.5
-keybert==0.8.5
-pdfplumber==0.11.0
-python-docx==1.1.2
+torch==1.13.1
+transformers==4.26.1
+sentence-transformers==2.2.2
+spacy==3.5.0
+keybert==0.7.0
+pdfplumber==0.10.2
+python-docx==1.1.0
 numpy==1.26.4
 git+https://github.com/asahi417/lm-question-generation.git

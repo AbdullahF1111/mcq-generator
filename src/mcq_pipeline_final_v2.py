@@ -359,8 +359,7 @@ if __name__ == "__main__":
 
     results_all = {}
     for name, text in examples.items():
-        print("
-Processing example:", name)
+        print("Processing example:", name)
         res = generate_mcqs_from_text(text, num_questions=5, desired_distractors=3, verbose=True)
         results_all[name] = res
         for i, q in enumerate(res["questions"], 1):
@@ -372,6 +371,5 @@ Processing example:", name)
 
     with open("mcq_output_final_v2.json", "w", encoding="utf-8") as f:
         json.dump(results_all, f, ensure_ascii=False, indent=2)
-    print("
-Saved mcq_output_final_v2.json")
+    print("Saved mcq_output_final_v2.json")
 

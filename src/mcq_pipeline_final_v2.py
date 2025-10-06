@@ -20,7 +20,7 @@ PIPELINE_DEVICE = 0 if DEVICE == "cuda" else -1
 # -------------------------
 print("Loading models... (may take a while)")
 # Embeddings (لتقييم التشابه)
-embedder = SentenceTransformer("all-MiniLM-L6-v2", device=device)
+embedder = SentenceTransformer("all-MiniLM-L6-v2", device=DEVICE)
  #QG model (سؤال + جواب)
 qg = TransformersQG(model="lmqg/t5-base-squad-qg")   # QG + AE
 

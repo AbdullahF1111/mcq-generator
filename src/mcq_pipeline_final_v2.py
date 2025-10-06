@@ -1,4 +1,3 @@
-
 !pip install -q transformers sentence-transformers spacy pdfplumber python-docx keybert streamlit
 !python -m spacy download en_core_web_sm -q
 !pip install -q lmqg
@@ -136,7 +135,7 @@ def generate_distractors_by_lm(question: str, answer: str, num: int = 6) -> List
         out = distractor_gen(prompt, max_new_tokens=64, num_beams=4, do_sample=False, top_p=0.9, temperature=0.7)
         txt = out[0].get("generated_text", "")
         txt = clean_text_generated(txt)
-        parts = [p.strip() for p in re.split(r'[,
+        parts = [p.strip() for p in re.split(r'[,\n]', text)]
 ;]+', txt) if p.strip()]
         # filter very long parts
         parts = [p for p in parts if len(p.split()) <= 4]

@@ -63,7 +63,7 @@ def clean_text_generated(txt: str) -> str:
 
 
 def is_short_noun_phrase(text: str, max_tokens: int = 3) -> bool:
-    ""Return True if text is noun phrase of <= max_tokens and not a sentence.""
+    #Return True if text is noun phrase of <= max_tokens and not a sentence.
     if not text or len(text.split()) == 0:
         return False
     if len(text.split()) > max_tokens:
@@ -115,7 +115,7 @@ def extract_candidates_from_context(context: str) -> List[str]:
 
 
 def generate_distractors_by_lm(question: str, answer: str, num: int = 6) -> List[str]:
-    ""Prompt LM to produce comma-separated short distractors. Deterministic-ish.""
+    #Prompt LM to produce comma-separated short distractors. Deterministic-ish.
     prompt = (f"Generate {num} short plausible distractors (1-3 words) for this question. "
               f"Question: {question} | Correct answer: {answer}. "
               f"Return a comma-separated list. Do NOT repeat the correct answer.")
@@ -133,7 +133,7 @@ def generate_distractors_by_lm(question: str, answer: str, num: int = 6) -> List
 
 
 def semantic_select(answer: str, candidates: List[str], k: int = NUM_DISTRACTORS) -> List[str]:
-    ""Select k candidates semantically close to answer but diverse among themselves.""
+    #Select k candidates semantically close to answer but diverse among themselves.
     if not candidates:
         return []
     cand_emb = sbert.encode(candidates, convert_to_tensor=True)

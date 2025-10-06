@@ -8,3 +8,4 @@ pdfplumber==0.10.2
 python-docx==1.1.0
 numpy==1.26.4
 git+https://github.com/asahi417/lm-question-generation.git
+https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.5.0/en_core_web_sm-3.5.0-py3-none-any.whl

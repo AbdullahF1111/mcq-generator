@@ -1,7 +1,7 @@
 import streamlit as st
 import json
 import os
-from mcq_pipeline_final_v2 import generate_mcqs_from_text
+#from mcq_pipeline_final_v2 import generate_mcqs_from_text
 import spacy
 from spacy.cli import download
 try:

@@ -8,7 +8,7 @@ from keybert import KeyBERT
 from sentence_transformers import SentenceTransformer
 from transformers import pipeline
 import numpy as np
-
+import torch
 # -------------------------
 # Config / device
 # -------------------------

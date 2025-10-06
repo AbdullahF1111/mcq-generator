@@ -1,10 +1,13 @@
 streamlit
 spacy==3.7.2
-sentence-transformers==2.6.1
 torch
 scikit-learn
 numpy
 pandas
+# نثبّت lmqg مباشرة من GitHub بدون تقييد الإصدار
 git+https://github.com/asahi417/lm-question-generation.git
-transformers==4.26.1
+# نسمح لـ pip باختيار نسخة transformers المناسبة لـ lmqg
+transformers>=4.26.1,<4.32.0
+# نستخدم إصدار أقدم من sentence-transformers المتوافق مع هذه النسخة من transformers
+sentence-transformers==2.2.2
 protobuf==3.20.*

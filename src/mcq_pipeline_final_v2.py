@@ -1,4 +1,4 @@
-!pip install -q transformers sentence-transformers spacy pdfplumber python-docx keybert streamlit
+#!pip install -q transformers sentence-transformers spacy pdfplumber python-docx keybert streamlit
 !python -m spacy download en_core_web_sm -q
 !pip install -q lmqg
 !pip install numpy==1.26.4

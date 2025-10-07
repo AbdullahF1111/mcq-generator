@@ -2,12 +2,10 @@
 import re
 import json
 import spacy
-from keybert import KeyBERT
 from sentence_transformers import SentenceTransformer
-from transformers import pipeline
+from transformers import pipeline, AutoTokenizer, AutoModelForSeq2SeqLM
 import numpy as np
 import torch
-from lmqg import TransformersQG
 from typing import List, Dict, Any
 from sentence_transformers import util
 import random
@@ -33,49 +31,140 @@ def load_models():
     device = "cpu"
     
     try:
-        # تحميل النماذج بشكل منفصل مع معالجة الأخطاء
         embedder = SentenceTransformer("all-MiniLM-L6-v2", device=device)
     except Exception as e:
         print(f"Error loading SentenceTransformer: {e}")
-        # بديل أخف
-        embedder = SentenceTransformer("paraphrase-albert-small-v2", device=device)
+        embedder = None
     
     try:
-        # استخدام نموذج أخف للسؤال والإجابة
-        qg = TransformersQG(language="en", model="lmqg/t5-small-squad-qg")
+        # استخدام T5 مباشرة لتوليد الأسئلة بدلاً من lmqg
+        qg_tokenizer = AutoTokenizer.from_pretrained("mrm8488/t5-base-finetuned-question-generation-ap")
+        qg_model = AutoModelForSeq2SeqLM.from_pretrained("mrm8488/t5-base-finetuned-question-generation-ap")
+        qg_pipeline = pipeline(
+            "text2text-generation",
+            model=qg_model,
+            tokenizer=qg_tokenizer,
+            device=-1
+        )
     except Exception as e:
         print(f"Error loading QG model: {e}")
-        qg = None
+        qg_pipeline = None
     
     try:
-        # استخدام نماذج أخف
         qa_pipe = pipeline(
             "question-answering", 
             model="distilbert-base-uncased-distilled-squad", 
-            device=-1  # استخدام CPU
+            device=-1
         )
     except Exception as e:
         print(f"Error loading QA model: {e}")
         qa_pipe = None
     
     try:
-        # استخدام نموذج أخف لتوليد المشتتات
         distractor_gen = pipeline(
             "text2text-generation",
             model="google/flan-t5-small",
-            device=-1  # استخدام CPU
+            device=-1
         )
     except Exception as e:
         print(f"Error loading distractor model: {e}")
         distractor_gen = None
     
-    return nlp, embedder, qg, qa_pipe, distractor_gen
+    return nlp, embedder, qg_pipeline, qa_pipe, distractor_gen
 
 # تحميل النماذج مرة واحدة
-nlp, embedder, qg, qa_pipe, distractor_gen = load_models()
+nlp, embedder, qg_pipeline, qa_pipe, distractor_gen = load_models()
 
 # -------------------------
-# باقي الدوال بدون تغيير
+# دوال توليد الأسئلة البديلة
+# -------------------------
+
+def generate_questions_answers(context: str, num_questions: int = 5) -> List[tuple]:
+    """توليد أسئلة وإجابات من النص باستخدام T5"""
+    if qg_pipeline is None:
+        return []
+    
+    questions_answers = []
+    
+    try:
+        # تقسيم النص إلى جمل
+        doc = nlp(context)
+        sentences = [sent.text.strip() for sent in doc.sents if len(sent.text.strip()) > 20]
+        
+        for sentence in sentences[:num_questions * 2]:  # معالجة جمل أكثر للحصول على أسئلة كافية
+            # prompt لتوليد الأسئلة
+            input_text = f"generate questions: {sentence}"
+            
+            try:
+                outputs = qg_pipeline(
+                    input_text,
+                    max_length=64,
+                    num_return_sequences=1,
+                    num_beams=4,
+                    early_stopping=True
+                )
+                
+                for output in outputs:
+                    question = clean_text_generated(output['generated_text'])
+                    if question and len(question.split()) >= 3:
+                        # استخدام QA pipeline للحصول على الإجابة
+                        try:
+                            qa_result = qa_pipe(question=question, context=context)
+                            answer = clean_text_generated(qa_result['answer'])
+                            if answer and len(answer.split()) <= 4:  # إجابات قصيرة فقط
+                                questions_answers.append((question, answer))
+                                break
+                        except:
+                            continue
+            except:
+                continue
+            
+            if len(questions_answers) >= num_questions:
+                break
+                
+    except Exception as e:
+        print(f"Error in question generation: {e}")
+    
+    return questions_answers
+
+def generate_questions_simple(context: str, num_questions: int = 5) -> List[tuple]:
+    """طريقة بديلة أبسط لتوليد الأسئلة"""
+    questions_answers = []
+    
+    try:
+        doc = nlp(context)
+        sentences = [sent.text.strip() for sent in doc.sents if len(sent.text.strip()) > 30]
+        
+        for sentence in sentences[:num_questions]:
+            # استخراج الكيانات الرئيسية
+            entities = [ent.text for ent in doc.ents if ent.label_ in ['PERSON', 'ORG', 'GPE', 'DATE', 'TIME']]
+            noun_chunks = [chunk.text for chunk in doc.noun_chunks if len(chunk.text.split()) <= 3]
+            
+            candidates = list(set(entities + noun_chunks))
+            
+            for candidate in candidates[:3]:  # استخدام أول 3 مرشحات لكل جملة
+                if len(candidate.split()) > 3:
+                    continue
+                    
+                # إنشاء سؤال بسيط
+                question = f"What is {candidate}?"
+                answer = candidate
+                
+                questions_answers.append((question, answer))
+                
+                if len(questions_answers) >= num_questions:
+                    break
+                    
+            if len(questions_answers) >= num_questions:
+                break
+                
+    except Exception as e:
+        print(f"Error in simple question generation: {e}")
+    
+    return questions_answers
+
+# -------------------------
+# باقي الدوال (بدون تغيير)
 # -------------------------
 
 def clean_text_generated(txt: str) -> str:
@@ -181,7 +270,6 @@ def semantic_select(answer: str, candidates: List[str], k: int = 3) -> List[str]
 
 def qa_answer_check_and_cleanup(question: str, context: str, answer: str) -> str:
     if qa_pipe is None:
-        # fallback إذا لم يتم تحميل النموذج
         if answer and re.search(re.escape(answer.strip()), context, flags=re.IGNORECASE):
             return answer.strip()
         return ""
@@ -203,37 +291,15 @@ def qa_answer_check_and_cleanup(question: str, context: str, answer: str) -> str
 def generate_mcqs_from_text(context: str, num_questions: int = 5, desired_distractors: int = 3, verbose: bool = False) -> Dict[str, Any]:
     out = {"source_len": len(context.split()), "questions": []}
     
-    if qg is None:
-        print("QG model not available")
-        return out
+    # توليد الأسئلة باستخدام الطريقة المتقدمة أو البسيطة
+    qa_pairs = generate_questions_answers(context, num_questions)
     
-    try:
-        qa_pairs_raw = qg.generate_qa(context, num_questions=num_questions)
-    except Exception as e:
-        print("QG error:", e)
-        qa_pairs_raw = []
-
-    qa_pairs = []
-    seen_q = set()
-    for rec in qa_pairs_raw:
-        if isinstance(rec, dict):
-            q = clean_text_generated(rec.get("question", ""))
-            a = clean_text_generated(rec.get("answer", ""))
-        elif isinstance(rec, (list, tuple)) and len(rec) == 2:
-            q = clean_text_generated(rec[0])
-            a = clean_text_generated(rec[1])
-        else:
-            continue
-        
-        if not q or len(q.split()) < 3:
-            continue
-        if q in seen_q:
-            continue
-        seen_q.add(q)
-        qa_pairs.append((q, a))
-
+    # إذا لم تنجح الطريقة المتقدمة، استخدم الطريقة البسيطة
+    if not qa_pairs:
+        qa_pairs = generate_questions_simple(context, num_questions)
+    
     if verbose:
-        print("QA pairs (cleaned):", qa_pairs)
+        print("QA pairs generated:", qa_pairs)
 
     pool = extract_candidates_from_context(context)
     BLACKLIST_WORDS = {"option", "list", "adjectives", "unknown", "true", "false", "thing", "stuff"}
@@ -296,5 +362,3 @@ def generate_mcqs_from_text(context: str, num_questions: int = 5, desired_distra
         })
 
     return out
-
-# باقي الكود بدون تغيير...

@@ -1,8 +1,8 @@
-# Core app and UI
+# Core UI
 streamlit==1.38.0
 
 # NLP and embeddings
-torch==1.13.1
+torch==1.13.0
 transformers==4.26.1
 sentence-transformers==2.2.2
 keybert==0.7.0

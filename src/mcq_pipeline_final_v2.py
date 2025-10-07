@@ -14,6 +14,34 @@ from typing import List, Dict, Any
 from sentence_transformers import util
 import random
 
+
+
+
+# -------------------------
+# Global model cache
+# -------------------------
+@st.cache_resource(show_spinner=False)
+def load_models():
+    DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+    PIPELINE_DEVICE = 0 if DEVICE == "cuda" else -1
+
+    nlp = spacy.load("en_core_web_sm")
+    embedder = SentenceTransformer("all-MiniLM-L6-v2", device=DEVICE)
+    qg = TransformersQG(model="lmqg/t5-base-squad-qg")
+    qa_pipe = pipeline("question-answering",
+                       model="deepset/roberta-base-squad2",
+                       tokenizer="deepset/roberta-base-squad2",
+                       device=PIPELINE_DEVICE)
+    distractor_gen = pipeline("text2text-generation",
+                              model="google/flan-t5-base",
+                              device=PIPELINE_DEVICE)
+    return nlp, embedder, qg, qa_pipe, distractor_gen
+
+
+# Load once globally
+print("Loading models... (first time only)")
+nlp, embedder, qg, qa_pipe, distractor_gen = load_models()
+
 # -------------------------
 # Config / device
 # -------------------------

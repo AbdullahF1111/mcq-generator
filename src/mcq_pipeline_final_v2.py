@@ -15,33 +15,33 @@ from sentence_transformers import util
 import random
 import streamlit as st
 
+import warnings
 
+warnings.filterwarnings("ignore", category=UserWarning)
 
-# -------------------------
-# Global model cache
-# -------------------------
+DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+
 @st.cache_resource(show_spinner=False)
 def load_models():
-    DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-    PIPELINE_DEVICE = 0 if DEVICE == "cuda" else -1
+    try:
+        nlp = spacy.load("en_core_web_sm")
+    except Exception:
+        # Fallback if not preinstalled
+        from spacy.cli import download
+        download("en_core_web_sm")
+        nlp = spacy.load("en_core_web_sm")
 
-    nlp = spacy.load("en_core_web_sm")
-    embedder = SentenceTransformer("all-MiniLM-L6-v2", device=DEVICE)
-    qg = TransformersQG(model="lmqg/t5-base-squad-qg")
-    qa_pipe = pipeline("question-answering",
-                       model="deepset/roberta-base-squad2",
-                       tokenizer="deepset/roberta-base-squad2",
-                       device=PIPELINE_DEVICE)
-    distractor_gen = pipeline("text2text-generation",
-                              model="google/flan-t5-base",
-                              device=PIPELINE_DEVICE)
+    # ✅ Safe CPU-friendly load
+    embedder = SentenceTransformer("all-MiniLM-L6-v2", device="cpu")
+
+    # ✅ Lightweight question generator
+    qg = TransformersQG(language="en", model="lmqg/t5-small-squad-qg")
+
+    # ✅ Use CPU for QA and distractor generation
+    qa_pipe = pipeline("question-answering", model="distilbert-base-cased-distilled-squad", device=-1)
+    distractor_gen = pipeline("text-generation", model="gpt2", device=-1)
+
     return nlp, embedder, qg, qa_pipe, distractor_gen
-
-
-# Load once globally
-print("Loading models... (first time only)")
-nlp, embedder, qg, qa_pipe, distractor_gen = load_models()
-
 # -------------------------
 # Config / device
 # -------------------------

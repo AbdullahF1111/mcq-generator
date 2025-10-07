@@ -9,6 +9,11 @@ from sentence_transformers import SentenceTransformer
 from transformers import pipeline
 import numpy as np
 import torch
+from lmqg import TransformersQG
+from typing import List, Dict, Any
+from sentence_transformers import util
+import random
+
 # -------------------------
 # Config / device
 # -------------------------
@@ -89,7 +94,7 @@ def detect_qtype(question: str) -> str:
         return "PERSON"
     if re.search(r'when|year|(month|day|morning|evening|summer|winter)', q):
         # special-case: 'what ... mountains' should be LOC
-        if re.search(r'what\s+.*(mountain|mountains|river|city|lake|island|park|trail|valley|coast|beach|state|country|village|town)', q):
+        if re.search(r'what\s+.*\b(mountain|mountains|river|city|lake|island|park|trail|valley|coast|beach|state|country|village|town)\b', q):
             return "LOC"
         return "TIME"
     # fallback
@@ -123,7 +128,7 @@ def generate_distractors_by_lm(question: str, answer: str, num: int = 6) -> List
         out = distractor_gen(prompt, max_new_tokens=64, num_beams=4, do_sample=False, top_p=0.9, temperature=0.7)
         txt = out[0].get("generated_text", "")
         txt = clean_text_generated(txt)
-        parts = [p.strip() for p in re.split(r'[,;\n]+', text) if p.strip()]
+        parts = [p.strip() for p in re.split(r'[,;\n]+', txt) if p.strip()]
         # filter very long parts
         parts = [p for p in parts if len(p.split()) <= 4]
         return parts[:num]

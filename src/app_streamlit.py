@@ -2,8 +2,6 @@
 import streamlit as st
 import re
 import random
-import subprocess
-import sys
 from typing import List, Dict, Any
 
 # إعدادات الصفحة
@@ -14,81 +12,68 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-@st.cache_resource(show_spinner=False)
-def load_spacy_model():
-    """تحميل spaCy model بطريقة آمنة"""
-    try:
-        import spacy
-        nlp = spacy.load("en_core_web_sm")
-        return nlp
-    except OSError:
-        try:
-            st.info("📥 Downloading language model... (first time only)")
-            subprocess.check_call([
-                sys.executable, "-m", "spacy", "download", "en_core_web_sm"
-            ])
-            import spacy
-            nlp = spacy.load("en_core_web_sm")
-            return nlp
-        except Exception as e:
-            st.error(f"❌ Failed to load language model: {e}")
-            return None
-
-def extract_entities(text: str) -> List[str]:
-    """استخراج الكيانات من النص"""
-    nlp = load_spacy_model()
-    if nlp is None:
-        return []
+def extract_entities_simple(text: str) -> List[str]:
+    """استخراج الكيانات من النص بدون spaCy"""
+    entities = []
     
-    try:
-        doc = nlp(text)
-        entities = []
-        
-        # الكيانات المسماة
-        for ent in doc.ents:
-            if ent.label_ in ['PERSON', 'ORG', 'GPE', 'DATE', 'TIME']:
-                entities.append(ent.text.strip())
-        
-        # العبارات الاسمية
-        for chunk in doc.noun_chunks:
-            if 1 <= len(chunk.text.split()) <= 3:
-                entities.append(chunk.text.strip())
-        
-        return list(set(entities))  # إزالة التكرارات
-    except Exception:
-        return []
+    # استخراج الأسماء (تبسيط كبير)
+    words = re.findall(r'\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\b', text)
+    entities.extend(words)
+    
+    # استخراج التواريخ
+    dates = re.findall(r'\b(?:19|20)\d{2}\b', text)
+    entities.extend(dates)
+    
+    # استخراج الأماكن (كلمات تبدأ بحرف كبير متتالية)
+    potential_places = re.findall(r'\b(?:[A-Z][a-z]+\s+)+[A-Z][a-z]+\b', text)
+    entities.extend([p.strip() for p in potential_places if len(p.split()) <= 3])
+    
+    # إزالة التكرارات والكلمات الشائعة
+    common_words = {'The', 'This', 'That', 'These', 'Those', 'There', 'Here', 'Which', 'What', 'Who'}
+    entities = [e for e in entities if e not in common_words and len(e) > 2]
+    
+    return list(set(entities))
 
-def generate_questions_from_text(text: str, num_questions: int = 3) -> List[tuple]:
-    """توليد أسئلة من النص"""
-    entities = extract_entities(text)
+def generate_questions_simple(text: str, num_questions: int = 3) -> List[tuple]:
+    """توليد أسئلة من النص بدون نماذج معقدة"""
+    entities = extract_entities_simple(text)
     questions = []
     
     question_templates = [
-        ("What is {entity}?", "PERSON"),
-        ("Who is {entity}?", "PERSON"), 
-        ("Where is {entity} located?", "GPE"),
-        ("When was {entity} founded?", "DATE"),
-        ("What organization is {entity} part of?", "ORG"),
-        ("Which year was {entity} established?", "DATE"),
-        ("Who discovered {entity}?", "PERSON"),
-        ("Where can you find {entity}?", "GPE")
+        "What is {}?",
+        "Who is {}?", 
+        "Where is {} located?",
+        "When was {}?",
+        "What year was {}?",
+        "Who discovered {}?",
+        "Where can you find {}?",
+        "Which country is {} in?",
+        "When did {} happen?",
+        "What is the significance of {}?"
     ]
     
-    for entity in entities[:num_questions * 2]:
-        for template, expected_type in question_templates:
-            if len(questions) >= num_questions:
-                break
-                
-            question = template.format(entity=entity)
+    used_entities = set()
+    
+    for entity in entities:
+        if len(questions) >= num_questions:
+            break
             
-            # التحقق من أن الإجابة موجودة في النص
-            if entity.lower() in text.lower():
-                questions.append((question, entity))
-                break
+        # تجنب تكرار استخدام نفس الكيان
+        if entity in used_entities:
+            continue
+            
+        # اختيار قالب سؤال عشوائي
+        template = random.choice(question_templates)
+        question = template.format(entity)
+        
+        # التحقق من أن الإجابة موجودة في النص
+        if entity.lower() in text.lower():
+            questions.append((question, entity))
+            used_entities.add(entity)
     
     return questions[:num_questions]
 
-def generate_distractors(answer: str, all_entities: List[str], num_distractors: int = 3) -> List[str]:
+def generate_distractors_simple(answer: str, all_entities: List[str], num_distractors: int = 3) -> List[str]:
     """توليد مشتتات من الكيانات الأخرى"""
     # إزالة الإجابة الصحيحة
     other_entities = [e for e in all_entities if e.lower() != answer.lower()]
@@ -105,7 +90,7 @@ def generate_distractors(answer: str, all_entities: List[str], num_distractors: 
         
         # تحديد نوع الكيان
         entity_type = "default"
-        if any(word in answer.lower() for word in ['city', 'country', 'state', 'river', 'mountain']):
+        if any(word in answer.lower() for word in ['city', 'country', 'state', 'river', 'mountain', 'ocean']):
             entity_type = "place"
         elif re.search(r'\b(19|20)\d{2}\b', answer):
             entity_type = "date"
@@ -142,7 +127,7 @@ def generate_mcqs_from_text(context: str, num_questions: int = 3, desired_distra
         }
     
     # استخراج الكيانات
-    all_entities = extract_entities(context)
+    all_entities = extract_entities_simple(context)
     
     if not all_entities:
         return {
@@ -153,7 +138,7 @@ def generate_mcqs_from_text(context: str, num_questions: int = 3, desired_distra
         }
     
     # توليد الأسئلة
-    qa_pairs = generate_questions_from_text(context, num_questions)
+    qa_pairs = generate_questions_simple(context, num_questions)
     
     if not qa_pairs:
         return {
@@ -166,7 +151,7 @@ def generate_mcqs_from_text(context: str, num_questions: int = 3, desired_distra
     questions = []
     for question, answer in qa_pairs:
         # توليد المشتتات
-        distractors = generate_distractors(answer, all_entities, desired_distractors)
+        distractors = generate_distractors_simple(answer, all_entities, desired_distractors)
         
         # إنشاء الخيارات
         options = distractors + [answer]
@@ -200,8 +185,8 @@ def generate_mcqs_from_text(context: str, num_questions: int = 3, desired_distra
     }
 
 # واجهة المستخدم
-st.title("🧠 MCQ Generator")
-st.markdown("Generate multiple-choice questions from any text using AI")
+st.title("🧠 Simple MCQ Generator")
+st.markdown("Generate multiple-choice questions from any text")
 
 # نموذج الإدخال
 with st.form("input_form"):
@@ -249,7 +234,7 @@ if generate_btn:
                                 emoji = "✅" if option == q["answer"] else "⚪"
                                 st.markdown(f"{emoji} **{chr(65+j)}.** {option}")
                             
-                            st.caption(f"🔹 Type: {q['qtype']} • 📝 Entities: {q['meta']['entities_found']}")
+                            st.caption(f"🔹 Type: {q['qtype']}")
                             st.divider()
                 
                 elif results["status"] == "error":
@@ -281,7 +266,7 @@ with st.expander("💡 **Tips & Examples**", expanded=True):
     ```
     
     **⚡ How it works:**
-    1. Extracts key entities (names, places, dates) from your text
+    1. Extracts key entities (names, places, dates) using pattern matching
     2. Generates questions based on these entities
     3. Creates distractors from other entities in the text
     4. Shuffles options randomly
@@ -308,4 +293,4 @@ if 'example_text' in st.session_state:
 
 # تذييل الصفحة
 st.markdown("---")
-st.caption("Built with ❤️ using Streamlit and spaCy • Simple MCQ Generator")
+st.caption("Built with ❤️ using Streamlit • Simple MCQ Generator")

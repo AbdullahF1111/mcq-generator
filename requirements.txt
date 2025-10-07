@@ -1,6 +1,3 @@
 # requirements.txt
 streamlit>=1.28.0
 spacy>=3.7.0
-torch==2.0.1
-numpy==1.24.3
-

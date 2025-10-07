@@ -1,16 +1,16 @@
-!pip install -q transformers sentence-transformers spacy pdfplumber python-docx keybert streamlit
-!python -m spacy download en_core_web_sm -q
-!pip install -q lmqg
-!pip install numpy==1.26.4
-# mcq_pipeline_final_v2.py
-""
-Improved MCQ pipeline v2
-Save as mcq_pipeline_final_v2.py and run in Colab / local env.
+# !pip install -q transformers sentence-transformers spacy pdfplumber python-docx keybert streamlit
+# !python -m spacy download en_core_web_sm -q
+# !pip install -q lmqg
+# !pip install numpy==1.26.4
+# # mcq_pipeline_final_v2.py
+# ""
+# Improved MCQ pipeline v2
+# Save as mcq_pipeline_final_v2.py and run in Colab / local env.
 
-Requirements (example):
-pip install lmqg transformers sentence-transformers spacy torch pdfplumber python-docx
-python -m spacy download en_core_web_sm
-""
+# Requirements (example):
+# pip install lmqg transformers sentence-transformers spacy torch pdfplumber python-docx
+# python -m spacy download en_core_web_sm
+# ""
 import re
 import random
 import json

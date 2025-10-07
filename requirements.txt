@@ -1,2 +1,11 @@
-# requirements.txt
-streamlit>=1.28.0
+streamlit==1.38.0
+torch==1.13.1
+torch==1.13.0
+transformers==4.26.1
+sentence-transformers==2.2.2
+spacy==3.5.0
+keybert==0.7.0
+pdfplumber==0.10.2
+python-docx==1.1.0
+numpy==1.26.4
+git+https://github.com/asahi417/lm-question-generation.git

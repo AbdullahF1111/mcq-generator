@@ -1,56 +1,58 @@
-import sys
-import os
-sys.path.append(os.path.dirname(__file__))
+# app_streamlit.py
 import streamlit as st
 import json
 from mcq_pipeline_final_v2 import generate_mcqs_from_text
-import spacy
-nlp = spacy.load("en_core_web_sm")
 
+st.set_page_config(page_title="MCQ Generator", page_icon="❓", layout="wide")
 
-# ----------------------------
-# Streamlit UI setup
-# ----------------------------
-st.set_page_config(page_title="MCQ Generator", layout="wide")
-st.title("🧠 Automatic MCQ Generator")
-st.markdown("Paste any English text below and click **Generate MCQs** to create automatic questions automatically using NLP models.")
+st.title("🧠 MCQ Generator from Text")
+st.markdown("Generate multiple-choice questions from any text input")
 
-# User text input
-user_text = st.text_area("✍️ Enter your text here:", height=200)
-num_questions = st.slider("Number of questions to generate:", 1, 10, 5)
+# إدخال النص
+text_input = st.text_area(
+    "Enter your text here:",
+    height=200,
+    placeholder="Paste your text here to generate multiple-choice questions..."
+)
 
-if st.button("🚀 Generate MCQs"):
-    if not user_text.strip():
-        st.warning("Please enter some text first.")
+# الإعدادات
+col1, col2 = st.columns(2)
+with col1:
+    num_questions = st.slider("Number of questions", 1, 10, 5)
+with col2:
+    num_distractors = st.slider("Distractors per question", 2, 5, 3)
+
+if st.button("Generate MCQs", type="primary"):
+    if not text_input.strip():
+        st.error("Please enter some text first!")
     else:
-        with st.spinner("Generating questions... please wait ⏳"):
-            results = generate_mcqs_from_text(user_text, num_questions=num_questions, desired_distractors=3)
-
-        if not results.get("questions"):
-            st.error("No questions could be generated. Try a longer or more informative text.")
-        else:
-            st.success("✅ MCQs generated successfully!")
-
-            # Display the generated MCQs
-            for i, q in enumerate(results["questions"], 1):
-                st.markdown(f"### Q{i}. {q['question']}")
-                for j, opt in enumerate(q["options"]):
-                    st.markdown(f"- {chr(65+j)}. {opt}")
-                st.markdown(f"**✅ Correct Answer:** {q['answer']}")
-                st.markdown("---")
-
-            # Ensure output directory exists
-            os.makedirs("outputs", exist_ok=True)
-            output_path = "outputs/mcq_output_user.json"
-
-            # Save the results
-            with open(output_path, "w", encoding="utf-8") as f:
-                json.dump(results, f, ensure_ascii=False, indent=2)
-
-            st.download_button(
-                label="⬇️ Download Generated MCQs (JSON)",
-                data=json.dumps(results, ensure_ascii=False, indent=2),
-                file_name="mcq_output_user.json",
-                mime="application/json"
-            )
-            st.success("Results have been saved and are ready for download.")
+        with st.spinner("Generating questions... This may take a few moments."):
+            try:
+                results = generate_mcqs_from_text(
+                    context=text_input,
+                    num_questions=num_questions,
+                    desired_distractors=num_distractors,
+                    verbose=False
+                )
+                
+                if results["questions"]:
+                    st.success(f"Generated {len(results['questions'])} questions!")
+                    
+                    for i, q in enumerate(results["questions"], 1):
+                        with st.expander(f"Question {i}: {q['question']}", expanded=True):
+                            st.markdown(f"**Question:** {q['question']}")
+                            st.markdown("**Options:**")
+                            
+                            for j, option in enumerate(q["options"]):
+                                if option == q["answer"]:
+                                    st.markdown(f"✅ **{chr(65+j)}. {option}** (Correct Answer)")
+                                else:
+                                    st.markdown(f"{chr(65+j)}. {option}")
+                            
+                            st.markdown(f"**Type:** {q['qtype']}")
+                else:
+                    st.warning("No questions could be generated from this text. Try a longer or more detailed text.")
+                    
+            except Exception as e:
+                st.error(f"An error occurred: {str(e)}")
+                st.info("Please try again with different text or settings.")

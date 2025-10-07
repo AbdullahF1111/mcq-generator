@@ -7,9 +7,12 @@ huggingface_hub==0.16.4
 spacy==3.7.2
 numpy==1.24.4
 protobuf==3.20.*
+pyarrow==14.0.2
+datasets==2.14.6
 
 # Question generation model
 git+https://github.com/asahi417/lm-question-generation.git
 
 # English model for spaCy
 en-core-web-sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.1/en_core_web_sm-3.7.1.tar.gz
+

@@ -1,4 +1,3 @@
-Abdullah F, [10/8/2025 4:18 PM]
 streamlit==1.32.0
 transformers==4.36.2
 sentence-transformers==2.2.2

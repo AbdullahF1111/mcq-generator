@@ -4,12 +4,8 @@ import random
 import json
 from typing import List, Dict, Any
 import torch
-from lmqg import TransformersQG
 from transformers import pipeline
 from sentence_transformers import SentenceTransformer, util
-import spacy
-import tempfile
-import os
 
 # تكوين الصفحة
 st.set_page_config(
@@ -25,51 +21,54 @@ def load_models():
     device = "cuda" if torch.cuda.is_available() else "cpu"
     
     with st.spinner("جاري تحميل النماذج... قد يستغرق بضع دقائق"):
-        # نموذج توليد الأسئلة
-        qg = TransformersQG(model="lmqg/t5-base-squad-qg")
-        
-        # نموذج الإجابات
-        qa_pipe = pipeline(
-            "question-answering",
-            model="deepset/roberta-base-squad2",
-            tokenizer="deepset/roberta-base-squad2",
-            device=0 if device == "cuda" else -1
-        )
-        
-        # نموذج التضمين
-        embedder = SentenceTransformer("all-MiniLM-L6-v2", device=device)
-        
-        # نموذج spacy
         try:
-            nlp = spacy.load("en_core_web_sm")
-        except OSError:
-            st.error("يجب تحميل نموذج spacy أولاً. تشغيل: python -m spacy download en_core_web_sm")
-            return None
+            # محاولة تحميل spacy - إذا فشل نستخدم بديل
+            try:
+                import spacy
+                nlp = spacy.load("en_core_web_sm")
+                spacy_available = True
+            except:
+                st.warning("⚠️ لم يتم تحميل Spacy، سيتم استخدام معالجة نصية مبسطة")
+                nlp = None
+                spacy_available = False
             
-        # نموذج توليد المشتتات
-        distractor_gen = pipeline(
-            "text2text-generation",
-            model="google/flan-t5-base",
-            device=0 if device == "cuda" else -1
-        )
+            # نموذج توليد الأسئلة باستخدام pipeline مباشرة
+            qg_pipe = pipeline(
+                "text2text-generation",
+                model="mrm8488/t5-base-finetuned-question-generation-ap",
+                device=0 if device == "cuda" else -1
+            )
+            
+            # نموذج الإجابات
+            qa_pipe = pipeline(
+                "question-answering",
+                model="deepset/roberta-base-squad2",
+                device=0 if device == "cuda" else -1
+            )
+            
+            # نموذج التضمين
+            embedder = SentenceTransformer("all-MiniLM-L6-v2", device=device)
+            
+            # نموذج توليد المشتتات
+            distractor_gen = pipeline(
+                "text2text-generation",
+                model="google/flan-t5-base",
+                device=0 if device == "cuda" else -1
+            )
+        
+        except Exception as e:
+            st.error(f"خطأ في تحميل النماذج: {e}")
+            return None
     
     return {
-        'qg': qg,
+        'qg_pipe': qg_pipe,
         'qa_pipe': qa_pipe,
         'embedder': embedder,
         'nlp': nlp,
+        'spacy_available': spacy_available,
         'distractor_gen': distractor_gen,
         'device': device
     }
-
-# تهيئة الثوابت
-NUM_DISTRACTORS = 3
-SIM_MIN = 0.20
-SIM_MAX = 0.92
-PAIRWISE_MAX = 0.86
-QA_CONF_MIN = 0.05
-
-BLACKLIST_WORDS = {"option", "list", "adjectives", "unknown", "true", "false", "thing", "stuff"}
 
 # الدوال المساعدة
 def clean_text_generated(txt: str) -> str:
@@ -77,209 +76,128 @@ def clean_text_generated(txt: str) -> str:
     if not txt:
         return ""
     txt = txt.strip()
-    txt = txt.replace("Ġ", " ").replace(" ", " ").strip()
-    txt = re.sub(r'^[A-Z]\s*([A-Z][a-z]+)', r'\1', txt)
     txt = re.sub(r'\s+', ' ', txt)
-    return txt.strip()
+    return txt
 
-def is_short_noun_phrase(text: str, max_tokens: int = 3) -> bool:
-    """التحقق من أن النص عبارة عن جملة اسمية قصيرة"""
-    if not text or len(text.split()) == 0:
-        return False
-    if len(text.split()) > max_tokens:
-        return False
-    
-    doc = st.session_state.models['nlp'](text)
-    if any(tok.pos_ == "VERB" for tok in doc):
-        return False
-    if not any(tok.pos_ in ("NOUN", "PROPN") for tok in doc):
-        return False
-    if re.fullmatch(r'[^A-Za-z0-9 ]+', text):
-        return False
-    return True
-
-def detect_qtype(question: str) -> str:
-    """تحديد نوع السؤال"""
-    q = question.lower()
-    if re.search(r'\bwhere\b', q):
-        return "LOC"
-    if re.search(r'\bwho\b|\bwhom\b', q):
-        return "PERSON"
-    if re.search(r'\bwhen\b|\byear\b|\b(month|day|morning|evening|summer|winter)\b', q):
-        if re.search(r'what\s+.*\b(mountain|mountains|river|city|lake|island|park|trail|valley|coast|beach|state|country|village|town)\b', q):
-            return "LOC"
-        return "TIME"
-    return "OTHER"
-
-def extract_candidates_from_context(context: str) -> List[str]:
-    """استخراج المرشحين من النص"""
-    doc = st.session_state.models['nlp'](context)
-    pool = set()
-    
-    for ent in doc.ents:
-        txt = ent.text.strip()
-        if 1 <= len(txt.split()) <= 4:
-            pool.add(clean_text_generated(txt))
-    
-    for nc in doc.noun_chunks:
-        txt = nc.text.strip()
-        if 1 <= len(txt.split()) <= 4:
-            pool.add(clean_text_generated(txt))
-    
+def extract_candidates_simple(context: str) -> List[str]:
+    """استخراج مرشحين بدون استخدام spacy"""
+    # استخراج كلمات كبيرة (أسماء) باستخدام regex بسيط
+    words = re.findall(r'\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\b', context)
+    # استخراج أرقام سنوات
     years = re.findall(r'\b\d{4}\b', context)
-    for y in years:
-        pool.add(y)
+    # استخراج كلمات شائعة بعد "the", "a", "an"
+    nouns = re.findall(r'\b(?:the|a|an)\s+(\w+\s\w+|\w+)', context.lower())
+    nouns = [n.title() for n in nouns]
     
-    return list(pool)
+    candidates = list(set(words + years + nouns))
+    return [c for c in candidates if 1 <= len(c.split()) <= 3]
 
-def generate_distractors_by_lm(question: str, answer: str, num: int = 6) -> List[str]:
-    """توليد مشتتات باستخدام النموذج اللغوي"""
-    prompt = (f"Generate {num} short plausible distractors (1-3 words) for this question. "
-              f"Question: {question} | Correct answer: {answer}. "
-              f"Return a comma-separated list. Do NOT repeat the correct answer.")
+def generate_qa_pairs(context: str, num_questions: int = 3) -> List[tuple]:
+    """توليد أزواج الأسئلة والإجابات"""
+    qa_pairs = []
+    
     try:
-        out = st.session_state.models['distractor_gen'](
-            prompt, max_new_tokens=64, num_beams=4, do_sample=False, top_p=0.9, temperature=0.7
-        )
-        txt = out[0].get("generated_text", "")
-        txt = clean_text_generated(txt)
-        parts = [p.strip() for p in re.split(r'[,\n;]+', txt) if p.strip()]
-        parts = [p for p in parts if len(p.split()) <= 4]
-        return parts[:num]
-    except Exception as e:
-        st.error(f"خطأ في توليد المشتتات: {e}")
-        return []
-
-def semantic_select(answer: str, candidates: List[str], k: int = NUM_DISTRACTORS) -> List[str]:
-    """اختيار المشتتات بناءً على التشابه الدلالي"""
-    if not candidates:
-        return []
-    
-    sbert = st.session_state.models['embedder']
-    cand_emb = sbert.encode(candidates, convert_to_tensor=True)
-    ans_emb = sbert.encode([answer], convert_to_tensor=True)
-    sims = util.pytorch_cos_sim(cand_emb, ans_emb).squeeze(1).cpu().numpy()
-    
-    idxs = [i for i, s in enumerate(sims) if SIM_MIN <= s <= SIM_MAX]
-    if not idxs:
-        idxs = sorted(range(len(candidates)), key=lambda i: -sims[i])[:min(len(candidates), k * 4)]
-    else:
-        idxs = sorted(idxs, key=lambda i: -sims[i])
-    
-    selected = []
-    for i in idxs:
-        emb_i = cand_emb[i]
-        ok = True
-        for j in selected:
-            if util.pytorch_cos_sim(emb_i, cand_emb[j]).item() > PAIRWISE_MAX:
-                ok = False
+        # تقسيم النص إلى جمل بسيط
+        sentences = re.split(r'[.!?]+', context)
+        sentences = [s.strip() for s in sentences if len(s.strip().split()) > 5]
+        
+        for sentence in sentences[:num_questions * 2]:
+            # توليد السؤال
+            prompt = f"generate question: {sentence}"
+            result = st.session_state.models['qg_pipe'](
+                prompt,
+                max_length=64,
+                num_return_sequences=1,
+                temperature=0.8
+            )
+            
+            question = clean_text_generated(result[0]['generated_text'])
+            
+            if question and len(question.split()) >= 3 and '?' in question:
+                # العثور على الإجابة
+                try:
+                    qa_result = st.session_state.models['qa_pipe'](
+                        question=question,
+                        context=context
+                    )
+                    answer = qa_result.get('answer', '').strip()
+                    score = qa_result.get('score', 0)
+                    
+                    if answer and score > 0.1 and len(answer.split()) <= 4:
+                        qa_pairs.append((question, answer))
+                except:
+                    continue
+            
+            if len(qa_pairs) >= num_questions:
                 break
-        if ok:
-            selected.append(i)
-        if len(selected) >= k:
-            break
-    
-    return [candidates[i] for i in selected]
-
-def qa_answer_check_and_cleanup(question: str, context: str, answer: str) -> str:
-    """التحقق من الإجابة وتنظيفها"""
-    try:
-        res = st.session_state.models['qa_pipe'](question=question, context=context)
-        pred = res.get("answer", "").strip()
-        score = float(res.get("score", 0.0))
-        pred = clean_text_generated(pred)
-        if pred and score >= QA_CONF_MIN:
-            return pred
-    except Exception:
-        pass
-    
-    if answer and re.search(re.escape(answer.strip()), context, flags=re.IGNORECASE):
-        return answer.strip()
-    return ""
-
-def generate_mcqs_from_text(context: str, num_questions: int = 5, desired_distractors: int = NUM_DISTRACTORS) -> Dict[str, Any]:
-    """الدالة الرئيسية لتوليد الأسئلة"""
-    out = {"source_len": len(context.split()), "questions": []}
-    
-    try:
-        qa_pairs_raw = st.session_state.models['qg'].generate_qa(context, num_questions=num_questions)
+                
     except Exception as e:
         st.error(f"خطأ في توليد الأسئلة: {e}")
+    
+    return qa_pairs
+
+def generate_distractors_simple(answer: str, context: str, num: int = 3) -> List[str]:
+    """توليد مشتتات باستخدام طريقة مبسطة"""
+    candidates = extract_candidates_simple(context)
+    
+    # إزالة الإجابة الصحيحة
+    candidates = [c for c in candidates if c.lower() != answer.lower()]
+    
+    # استخدام التضمين الدلالي إذا كان متاحاً
+    if len(candidates) > num:
+        try:
+            sbert = st.session_state.models['embedder']
+            cand_emb = sbert.encode(candidates, convert_to_tensor=True)
+            ans_emb = sbert.encode([answer], convert_to_tensor=True)
+            sims = util.pytorch_cos_sim(cand_emb, ans_emb).squeeze(1).cpu().numpy()
+            
+            # اختيار المرشحين الأكثر تشابهاً (ولكن ليس كثيراً)
+            selected_indices = []
+            for i in sorted(range(len(sims)), key=lambda i: -sims[i]):
+                if 0.3 <= sims[i] <= 0.8:
+                    selected_indices.append(i)
+                if len(selected_indices) >= num:
+                    break
+            
+            if selected_indices:
+                return [candidates[i] for i in selected_indices]
+        except:
+            pass
+    
+    # إذا فشل الاختيار الدلالي، نعود للاختيار العشوائي
+    return candidates[:num]
+
+def generate_mcqs_from_text(context: str, num_questions: int = 3) -> Dict[str, Any]:
+    """الدالة الرئيسية لتوليد الأسئلة"""
+    out = {"questions": []}
+    
+    # توليد أزواج الأسئلة والإجابات
+    qa_pairs = generate_qa_pairs(context, num_questions)
+    
+    if not qa_pairs:
+        st.info("⚠️ لم يتم توليد أي أسئلة. حاول بإدخال نص أطول أو أكثر تفصيلاً.")
         return out
     
-    # معالجة أزواج الأسئلة والإجابات
-    qa_pairs = []
-    seen_q = set()
-    
-    for rec in qa_pairs_raw:
-        if isinstance(rec, dict):
-            q = clean_text_generated(rec.get("question", ""))
-            a = clean_text_generated(rec.get("answer", ""))
-        elif isinstance(rec, (list, tuple)) and len(rec) == 2:
-            q = clean_text_generated(rec[0])
-            a = clean_text_generated(rec[1])
-        else:
-            continue
-        
-        if not q or len(q.split()) < 3 or q in seen_q:
-            continue
-        
-        seen_q.add(q)
-        qa_pairs.append((q, a))
-    
-    pool = extract_candidates_from_context(context)
-    
-    # معالجة كل سؤال
     for q, a in qa_pairs:
-        trusted_answer = qa_answer_check_and_cleanup(q, context, a)
+        trusted_answer = clean_text_generated(a)
         if not trusted_answer:
             continue
         
-        qtype = detect_qtype(q)
-        lm_cands = generate_distractors_by_lm(q, trusted_answer, num=8)
-        combined = list(dict.fromkeys(lm_cands + pool))
-        
-        # تصفية المرشحين
-        filtered = []
-        qnorm = re.sub(r'[^A-Za-z0-9 ]', '', q).lower()
-        ansnorm = re.sub(r'[^A-Za-z0-9 ]', '', trusted_answer).lower()
-        
-        for c in combined:
-            c_clean = clean_text_generated(c)
-            if not c_clean or len(c_clean) > 30:
-                continue
-            if any(b in c_clean.lower() for b in BLACKLIST_WORDS):
-                continue
-            if ansnorm and ansnorm in c_clean.lower():
-                continue
-            if sum(1 for w in c_clean.lower().split() if w in qnorm.split()) / max(1, len(c_clean.split())) > 0.6:
-                continue
-            if not is_short_noun_phrase(c_clean, max_tokens=3):
-                continue
-            filtered.append(c_clean)
-        
-        distractors = semantic_select(trusted_answer, filtered, k=desired_distractors)
+        # توليد المشتتات
+        distractors = generate_distractors_simple(trusted_answer, context, num=3)
         
         # إذا لم يكن هناك مشتتات كافية
-        if len(distractors) < desired_distractors:
-            pool_candidates = [p for p in pool if is_short_noun_phrase(p)]
-            for pc in pool_candidates:
-                if pc.lower() == trusted_answer.lower() or pc in distractors:
-                    continue
-                distractors.append(pc)
-                if len(distractors) >= desired_distractors:
-                    break
+        while len(distractors) < 3:
+            distractors.append(f"Option {len(distractors)+1}")
         
-        # الخلط النهائي للخيارات
+        # خلط الخيارات
         options = distractors + [trusted_answer]
         random.shuffle(options)
         
         out["questions"].append({
             "question": q,
             "answer": trusted_answer,
-            "options": options,
-            "qtype": qtype,
-            "meta": {"pool_used": len(pool), "lm_suggested": len(lm_cands)}
+            "options": options
         })
     
     return out
@@ -293,20 +211,21 @@ def main():
     if 'models' not in st.session_state:
         models = load_models()
         if models is None:
-            st.stop()
+            st.error("❌ فشل في تحميل النماذج. الرجاء التحقق من السجلات.")
+            return
         st.session_state.models = models
+        st.success("✅ تم تحميل النماذج بنجاح!")
     
     # شريط جانبي للإعدادات
     with st.sidebar:
         st.header("الإعدادات")
-        num_questions = st.slider("عدد الأسئلة", 1, 10, 5)
-        num_distractors = st.slider("عدد المشتتات لكل سؤال", 2, 5, 3)
+        num_questions = st.slider("عدد الأسئلة", 1, 5, 3)
         
         st.header("نصوص مثاليه")
         example_texts = {
             "الساعات الميكانيكية": "The invention of the mechanical clock revolutionized timekeeping. Before clocks, people relied on sundials and water clocks. In the 14th century, European inventors created gears and weights to measure time more accurately.",
             "القراءة": "Reading books is one of the most powerful ways to gain knowledge and expand your imagination.",
-            "الاحتباس الحراري": "Global warming is the long-term rise in Earth's average temperature. It is mainly caused by human activities such as burning fossil fuels which increase greenhouse gas concentrations."
+            "الاحتباس الحراري": "Global warming is the long-term rise in Earth's average temperature. It is mainly caused by human activities such as burning fossil fuels."
         }
         
         selected_example = st.selectbox("اختر مثالاً", list(example_texts.keys()))
@@ -327,11 +246,7 @@ def main():
             return
         
         with st.spinner("جاري توليد الأسئلة... قد يستغرق بضع ثوان"):
-            results = generate_mcqs_from_text(
-                input_text, 
-                num_questions=num_questions,
-                desired_distractors=num_distractors
-            )
+            results = generate_mcqs_from_text(input_text, num_questions)
         
         # عرض النتائج
         st.subheader(f"الأسئلة المولدة ({len(results['questions'])} سؤال)")
@@ -346,42 +261,15 @@ def main():
                 st.markdown(f"**{q['question']}**")
                 
                 # عرض الخيارات
-                cols = st.columns(2)
                 for j, option in enumerate(q['options']):
-                    with cols[j % 2]:
-                        is_correct = option == q['answer']
-                        emoji = "✅" if is_correct else "⚪"
-                        st.markdown(f"{emoji} **{chr(65+j)}.** {option}")
+                    is_correct = option == q['answer']
+                    emoji = "✅" if is_correct else "⚪"
+                    st.markdown(f"{emoji} **{chr(65+j)}.** {option}")
                 
-                with st.expander("معلومات إضافية"):
-                    st.write(f"**نوع السؤال:** {q['qtype']}")
+                with st.expander("معلومات الإجابة"):
                     st.write(f"**الإجابة الصحيحة:** {q['answer']}")
-                    st.write(f"**المعلومات:** {q['meta']}")
                 
                 st.divider()
-        
-        # خيارات التصدير
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            if st.button("📥 تصدير كـ JSON"):
-                st.download_button(
-                    label="تحميل JSON",
-                    data=json.dumps(results, ensure_ascii=False, indent=2),
-                    file_name="mcq_questions.json",
-                    mime="application/json"
-                )
-        
-        with col2:
-            if st.button("📋 نسخ النتائج"):
-                output_text = ""
-                for i, q in enumerate(results['questions'], 1):
-                    output_text += f"{i}. {q['question']}\n"
-                    for j, opt in enumerate(q['options']):
-                        output_text += f"   {chr(65+j)}. {opt}\n"
-                    output_text += f"   الإجابة: {q['answer']}\n\n"
-                
-                st.code(output_text)
 
 if __name__ == "__main__":
     main()

@@ -1,16 +1,3 @@
-streamlit==1.32.0
-transformers==4.36.2
-sentence-transformers==2.2.2
-torch==2.1.2
-spacy==3.7.2
-https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.1/en_core_web_sm-3.7.1-py3-none-any.whl
-pdfplumber==0.10.3
-python-docx==1.1.0
-numpy==1.26.4
-huggingface-hub==0.20.3
-accelerate==0.27.2
-
-Abdullah F, [10/8/2025 4:56 PM]
 import streamlit as st
 import re
 import random
@@ -121,7 +108,6 @@ def extract_entities_and_concepts(text: str) -> List[str]:
     
     return [e for e in entities if 1 <= len(e.split()) <= 3]
 
-Abdullah F, [10/8/2025 4:56 PM]
 def generate_high_quality_distractors(question: str, correct_answer: str, context: str, num: int = 3) -> List[str]:
     """Generate much better distractors"""
     
@@ -228,7 +214,6 @@ def get_semantic_distractors(answer: str, candidates: List[str], num: int) -> Li
     except:
         return candidates[:num]
 
-Abdullah F, [10/8/2025 4:56 PM]
 def select_best_distractors_enhanced(distractors: List[str], answer: str, question: str, num: int) -> List[str]:
     """Enhanced distractor selection"""
     if not distractors:
@@ -336,7 +321,6 @@ def generate_qa_pairs_enhanced(context: str, num_questions: int = 3) -> List[tup
     
     return qa_pairs
 
-Abdullah F, [10/8/2025 4:56 PM]
 def generate_mcqs_from_text(context: str, num_questions: int = 3) -> Dict[str, Any]:
     """Main function with enhanced validation"""
     out = {"questions": []}

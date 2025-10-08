@@ -22,7 +22,8 @@ num_questions = st.slider("Number of questions to generate:", 1, 10, 5)
 
 if st.button("🚀 Generate MCQs"):
 if not user_text.strip():
-st.warning("Please enter some text first.")
+    st.warning("Please enter some text before generating questions.")
+
 else:
 with st.spinner("Generating questions... please wait ⏳"):
 results = generate_mcqs_from_text(user_text, num_questions=num_questions, desired_distractors=3)

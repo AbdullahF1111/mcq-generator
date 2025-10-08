@@ -85,40 +85,38 @@ streamlit run src/app_streamlit.py
 
 ```
 
-🌐 Deployment (Optional)
+### 🌐 Deployment (Optional)
 
 The app is already deployed at:
 
-👉 https://mcq-generator-ubnjdcuymvze6drflrwtvy.streamlit.app/
+- 👉 https://mcq-generator-ubnjdcuymvze6drflrwtvy.streamlit.app/
 
 To deploy your own:
 
-Push your repo to GitHub.
+- Push your repo to GitHub.
 
-Go to streamlit.io/cloud
+- Go to streamlit.io/cloud
 .
 
 Choose your repo and select src/app_streamlit.py as the entry file.
 
-🔬 Limitations & Future Work
+### 🔬 Limitations & Future Work
 
-Distractors are heuristically generated — can be generic or low-quality.
+- Distractors are heuristically generated — can be generic or low-quality.
 
-Plan to fine-tune distractor generation using larger QG datasets.
+- Plan to fine-tune distractor generation using larger QG datasets.
 
-Add multilingual support with mT5 or flan-t5-xl.
+- Add multilingual support with mT5 or flan-t5-xl.
 
-Evaluate question quality using BLEU/ROUGE metrics.
+- Evaluate question quality using BLEU/ROUGE metrics.
 
-Expand to domain-specific MCQs (e.g., medicine, education, history).
+- Expand to domain-specific MCQs (e.g., medicine, education, history).
 
 👤 Author
 
-Abdullah Fahlo
-🎓 B.Sc. in Informatics Engineering — University of Aleppo
-📍 Aleppo, Syria
-📧 abdullahfahlo.com@gmail.com
-
-💼 LinkedIn
-
-💻 GitHub
+- Abdullah Fahlo
+- 🎓 B.Sc. in Informatics Engineering — University of Aleppo
+- 📍 Aleppo, Syria
+- 📧 abdullahfahlo.com@gmail.com
+- 💼 LinkedIn
+- 💻 GitHub

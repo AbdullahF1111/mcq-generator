@@ -26,7 +26,7 @@ if st.button("🚀 Generate MCQs"):
 
 else:
     with st.spinner("Generating questions... please wait ⏳"):
-results = generate_mcqs_from_text(user_text, num_questions=num_questions, desired_distractors=3)
+    results = generate_mcqs_from_text(user_text, num_questions=num_questions, desired_distractors=3)
 
 if not results.get("questions"):
     st.error("No questions could be generated. Try a longer or more informative text.")

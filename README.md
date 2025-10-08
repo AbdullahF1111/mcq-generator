@@ -82,7 +82,9 @@ pip install -r requirements.txt
 
 # Run the Streamlit app
 streamlit run src/app_streamlit.py
+
 ```
+
 🌐 Deployment (Optional)
 
 The app is already deployed at:

@@ -21,30 +21,6 @@ It demonstrates a **complete natural language processing pipeline** — from tex
 
 ---
 
-## 🧩 System Architecture
-
-
-
-## 📁 Project Structure
-- mcq-generator/
-- │
-- ├── data/ # Example input texts
-- │ ├── sample_books.txt
-- │ ├── sample_climate.txt
-- │ ├── sample_clocks.txt
-- │ └── sample_liam.txt
-- │
-- ├── src/ # Core Python logic
-- │ └── mcq_pipeline_final_v2.py
-- │
-- ├── notebooks/ # (Optional) Jupyter/Colab demos
-- │ └── demo_colab.ipynb
-- │
-- ├── requirements.txt # Python dependencies
-- ├── .gitignore # Ignore unnecessary files
-- └── README.md # Project documentation
-
-
 ## 🧠 Author
 - Abdullah Fahlo
 - Data Science & AI Student

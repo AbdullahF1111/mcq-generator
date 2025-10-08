@@ -4,60 +4,73 @@ import random
 import json
 from typing import List, Dict, Any
 import torch
-from transformers import pipeline
+from transformers import pipeline, T5ForConditionalGeneration, T5Tokenizer
 from sentence_transformers import SentenceTransformer, util
 
 # Page configuration
 st.set_page_config(
-    page_title="Fast MCQ Generator",
+    page_title="MCQ Generator Pro",
     page_icon="❓",
     layout="wide"
 )
 
 @st.cache_resource
 def load_models():
-    """Load lightweight models for Streamlit Cloud"""
-    device = "cpu"  # Force CPU for compatibility
+    """Load verified models that work on Hugging Face"""
     
-    with st.spinner("Loading optimized models..."):
+    with st.spinner("Loading verified models..."):
         try:
-            # Lightweight question generation
+            # Option 1: Use a simple T5 model for question generation
+            # We'll use a basic T5 model and craft better prompts
+            qg_tokenizer = T5Tokenizer.from_pretrained("t5-small")
+            qg_model = T5ForConditionalGeneration.from_pretrained("t5-small")
             qg_pipe = pipeline(
                 "text2text-generation",
-                model="mrm8488/t5-small-finetuned-question-generation-ap",  # Smaller model
-                device=-1,  # CPU only
-                max_length=64
-            )
-            
-            # Lightweight QA model
-            qa_pipe = pipeline(
-                "question-answering",
-                model="mrm8488/bert-tiny-finetuned-squadv2",  # Tiny model
+                model=qg_model,
+                tokenizer=qg_tokenizer,
                 device=-1
             )
             
-            # Embedding model (already lightweight)
-            embedder = SentenceTransformer("all-MiniLM-L6-v2", device=device)
+            # Verified QA model
+            qa_pipe = pipeline(
+                "question-answering",
+                model="distilbert-base-cased-distilled-squad",  # Verified working
+                device=-1
+            )
             
-            # Lightweight distractor generation
+            # Embedding model
+            embedder = SentenceTransformer("all-MiniLM-L6-v2", device="cpu")
+            
+            # Simple distractor generator using same T5 model
             distractor_gen = pipeline(
                 "text2text-generation",
-                model="mrm8488/t5-small-finetuned-qa-boolq",  # Small model
-                device=-1,
-                max_length=50
+                model=qg_model,
+                tokenizer=qg_tokenizer,
+                device=-1
             )
             
             return {
                 'qg_pipe': qg_pipe, 
                 'qa_pipe': qa_pipe, 
                 'embedder': embedder, 
-                'distractor_gen': distractor_gen,
-                'device': device
+                'distractor_gen': distractor_gen
             }
             
         except Exception as e:
-            st.error(f"Model loading failed: {str(e)}")
-            return None
+            st.error(f"Model loading error: {str(e)}")
+            # Fallback to minimal models
+            try:
+                st.info("Trying fallback models...")
+                qa_pipe = pipeline("question-answering", device=-1)
+                embedder = SentenceTransformer("all-MiniLM-L6-v2", device="cpu")
+                return {
+                    'qg_pipe': None,
+                    'qa_pipe': qa_pipe,
+                    'embedder': embedder,
+                    'distractor_gen': None
+                }
+            except:
+                return None
 
 def clean_text_generated(txt: str) -> str:
     """Clean generated text"""
@@ -68,244 +81,209 @@ def clean_text_generated(txt: str) -> str:
     txt = re.sub(r'^[\'"]|[\'"]$', '', txt)
     return txt
 
-def grammar_correct_question(question: str) -> str:
-    """Fix common grammar issues"""
-    corrections = {
-        r'\bhe\s+found\b': 'he found that',
-        r'\bwhat\s+did\s+(\w+)\s+found\b': r'what did \1 find',
-        r'\bhow\s+does\s+(\w+)\s+found\b': r'how does \1 find',
-    }
+def generate_question_from_sentence(sentence: str) -> str:
+    """Generate question using T5 with better prompting"""
+    if st.session_state.models['qg_pipe'] is None:
+        # Fallback: create simple questions
+        words = sentence.split()
+        if len(words) > 5:
+            key_terms = [word for word in words if word.istitle() and len(word) > 3]
+            if key_terms:
+                return f"What is {key_terms[0]}?"
+        return f"What is described in this text?"
     
-    corrected = question
-    for pattern, replacement in corrections.items():
-        corrected = re.sub(pattern, replacement, corrected, flags=re.IGNORECASE)
-    
-    corrected = corrected.strip()
-    if corrected and not corrected[0].isupper():
-        corrected = corrected[0].upper() + corrected[1:]
-    if not corrected.endswith('?'):
-        corrected += '?'
-    
-    return corrected
+    try:
+        # Better prompt for T5
+        prompt = f"generate question: {sentence}"
+        
+        result = st.session_state.models['qg_pipe'](
+            prompt,
+            max_length=64,
+            num_return_sequences=1,
+            temperature=0.8,
+            do_sample=True
+        )
+        
+        question = clean_text_generated(result[0]['generated_text'])
+        
+        # Ensure it's a proper question
+        if not question.endswith('?'):
+            question += '?'
+        if not question[0].isupper():
+            question = question[0].upper() + question[1:]
+            
+        return question
+        
+    except Exception:
+        # Fallback question
+        return f"What is the main idea of this text?"
 
-def extract_key_entities(text: str) -> List[str]:
-    """Extract meaningful entities using regex patterns"""
+def extract_entities_from_text(text: str) -> List[str]:
+    """Extract potential answer candidates from text"""
     entities = set()
     
-    # Proper nouns and technical terms
+    # Extract proper nouns (capitalized words)
     proper_nouns = re.findall(r'\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\b', text)
     entities.update(proper_nouns)
     
-    # Key phrases after specific patterns
-    patterns = [
-        r'(?:called|known as|termed)\s+([^.,;!?]+)',
-        r'(?:process|concept|phenomenon)\s+of\s+([^.,;!?]+)',
-        r'\b([A-Z][a-z]+\s+[a-z]+\s+[a-z]+)\b'  # Multi-word terms
-    ]
+    # Extract key phrases
+    key_phrases = re.findall(r'\b([A-Za-z]+\s+[A-Za-z]+\s+[A-Za-z]+)\b', text)
+    entities.update(key_phrases)
     
-    for pattern in patterns:
-        matches = re.findall(pattern, text, re.IGNORECASE)
-        for match in matches:
-            clean_match = clean_entity(match)
-            if clean_match:
-                entities.add(clean_match)
+    # Extract technical terms (longer words that might be important)
+    words = re.findall(r'\b[a-zA-Z]{6,}\b', text)
+    entities.update([word.title() for word in words])
     
-    # Filter for quality
-    return [e for e in entities if 1 <= len(e.split()) <= 3 and len(e) > 3]
+    # Filter and clean
+    clean_entities = []
+    for entity in entities:
+        clean_entity = clean_text_generated(entity)
+        if (clean_entity and 
+            1 <= len(clean_entity.split()) <= 3 and
+            len(clean_entity) > 3):
+            clean_entities.append(clean_entity)
+    
+    return clean_entities
 
-def clean_entity(entity: str) -> str:
-    """Clean entity formatting"""
-    if not entity:
-        return ""
+def generate_distractors_smart(correct_answer: str, context: str, num_distractors: int = 3) -> List[str]:
+    """Generate smart distractors using multiple strategies"""
     
-    entity = re.sub(r'^[^a-zA-Z]*|[^a-zA-Z]*$', '', entity.strip())
-    entity = re.sub(r'^(?:the|a|an)\s+', '', entity, flags=re.IGNORECASE)
+    # Get all entities from context
+    all_entities = extract_entities_from_text(context)
     
-    words = entity.split()
-    if len(words) > 1:
-        capitalized_words = []
-        for word in words:
-            if word.lower() in ['and', 'or', 'the', 'of', 'in', 'on']:
-                capitalized_words.append(word.lower())
-            else:
-                capitalized_words.append(word.capitalize())
-        entity = ' '.join(capitalized_words)
-    else:
-        entity = entity.capitalize()
+    # Remove correct answer
+    candidates = [e for e in all_entities if e.lower() != correct_answer.lower()]
     
-    return entity
-
-def generate_smart_distractors(question: str, correct_answer: str, context: str, num: int = 3) -> List[str]:
-    """Generate quality distractors efficiently"""
-    
-    # Get entities from context
-    entities = extract_key_entities(context)
-    entities = [e for e in entities if e.lower() != correct_answer.lower()]
-    
-    # Use semantic similarity for selection
-    semantic_distractors = get_semantic_distractors(correct_answer, entities, num * 2)
-    
-    # Add pattern-based distractors
-    pattern_distractors = get_pattern_based_distractors(question, correct_answer, context)
-    
-    # Combine and filter
-    all_distractors = list(set(semantic_distractors + pattern_distractors))
-    filtered = filter_distractors(all_distractors, correct_answer, question)
-    
-    return select_final_distractors(filtered, num)
-
-def get_semantic_distractors(answer: str, candidates: List[str], num: int) -> List[str]:
-    """Select distractors based on semantic similarity"""
-    if not candidates:
-        return []
-    
-    try:
-        sbert = st.session_state.models['embedder']
-        cand_emb = sbert.encode(candidates, convert_to_tensor=True)
-        ans_emb = sbert.encode([answer], convert_to_tensor=True)
-        sims = util.pytorch_cos_sim(cand_emb, ans_emb).squeeze(1).cpu().numpy()
-        
-        # Select candidates with moderate similarity
-        selected = []
-        for i, sim in enumerate(sims):
-            if 0.3 <= sim <= 0.7:
-                selected.append(candidates[i])
-            if len(selected) >= num:
-                break
-        
-        return selected
-    except:
-        return candidates[:num]
-
-def get_pattern_based_distractors(question: str, answer: str, context: str) -> List[str]:
-    """Generate distractors based on question patterns"""
-    distractors = []
-    q_lower = question.lower()
-    
-    # For discovery questions
-    if re.search(r'\b(discover|find|identify)\b', q_lower):
-        proper_nouns = re.findall(r'\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\b', context)
-        other_entities = [pn for pn in proper_nouns if pn.lower() != answer.lower()]
-        distractors.extend(other_entities[:2])
-    
-    # For process/questions
-    elif re.search(r'\b(process|phenomenon|mechanism)\b', q_lower):
-        process_terms = ["Chemical Process", "Biological Mechanism", "Physical Reaction"]
-        distractors.extend(process_terms)
-    
-    return distractors
-
-def filter_distractors(distractors: List[str], answer: str, question: str) -> List[str]:
-    """Filter out poor quality distractors"""
-    filtered = []
-    question_words = set(question.lower().split())
-    
-    for distractor in distractors:
-        d_lower = distractor.lower()
-        
-        if (d_lower == answer.lower() or
-            any(q_word in d_lower for q_word in question_words if len(q_word) > 3) or
-            len(distractor) < 2):
-            continue
+    # Strategy 1: Semantic similarity
+    semantic_candidates = []
+    if candidates:
+        try:
+            sbert = st.session_state.models['embedder']
+            cand_emb = sbert.encode(candidates, convert_to_tensor=True)
+            ans_emb = sbert.encode([correct_answer], convert_to_tensor=True)
+            sims = util.pytorch_cos_sim(cand_emb, ans_emb).squeeze(1).cpu().numpy()
             
-        filtered.append(distractor)
+            for i, sim in enumerate(sims):
+                if 0.3 <= sim <= 0.7:  # Good similarity range
+                    semantic_candidates.append(candidates[i])
+        except:
+            semantic_candidates = candidates[:num_distractors * 2]
     
-    return filtered
-
-def select_final_distractors(distractors: List[str], num: int) -> List[str]:
-    """Select final distractors ensuring diversity"""
-    if len(distractors) <= num:
-        return distractors
+    # Strategy 2: Pattern-based distractors
+    pattern_distractors = []
     
-    # Simple diversity selection - take first N unique ones
-    final = []
-    for distractor in distractors:
-        if distractor not in final:
-            final.append(distractor)
-        if len(final) >= num:
+    # For scientific texts
+    scientific_terms = ["Chemical Process", "Biological Mechanism", "Physical Reaction", 
+                       "Molecular Structure", "Atomic Process"]
+    pattern_distractors.extend(scientific_terms)
+    
+    # For historical texts  
+    historical_terms = ["Earlier Period", "Later Development", "Alternative Theory",
+                       "Previous Method", "Subsequent Event"]
+    pattern_distractors.extend(historical_terms)
+    
+    # Combine strategies
+    all_candidates = list(set(semantic_candidates + pattern_distractors + candidates))
+    
+    # Filter out poor candidates
+    filtered = []
+    for candidate in all_candidates:
+        if (candidate.lower() != correct_answer.lower() and
+            len(candidate) > 2 and
+            len(candidate.split()) <= 3):
+            filtered.append(candidate)
+    
+    # Select final distractors
+    final_distractors = []
+    for candidate in filtered:
+        if candidate not in final_distractors:
+            final_distractors.append(candidate)
+        if len(final_distractors) >= num_distractors:
             break
     
-    # Fill with fallbacks if needed
-    fallbacks = ["Alternative Method", "Different Process", "Other Approach"]
-    while len(final) < num:
-        for fb in fallbacks:
-            if fb not in final and len(final) < num:
-                final.append(fb)
+    # Fill remaining slots if needed
+    while len(final_distractors) < num_distractors:
+        fallback = f"Option {len(final_distractors) + 1}"
+        if fallback not in final_distractors:
+            final_distractors.append(fallback)
     
-    return final[:num]
+    return final_distractors[:num_distractors]
 
-def generate_qa_pairs_fast(context: str, num_questions: int = 3) -> List[tuple]:
-    """Fast QA pair generation"""
+def generate_qa_pairs_robust(context: str, num_questions: int = 3) -> List[tuple]:
+    """Robust QA pair generation with fallbacks"""
     qa_pairs = []
     
     try:
-        # Split into sentences
+        # Split text into sentences
         sentences = re.split(r'[.!?]+', context)
-        sentences = [s.strip() for s in sentences if len(s.strip().split()) > 6]
+        sentences = [s.strip() for s in sentences if len(s.strip().split()) > 8]  # Longer sentences
         
         for sentence in sentences[:num_questions * 2]:
             # Generate question
-            prompt = f"question: {sentence}"
+            question = generate_question_from_sentence(sentence)
             
-            result = st.session_state.models['qg_pipe'](
-                prompt,
-                max_length=64,
-                num_return_sequences=1,
-                temperature=0.7
-            )
-            
-            raw_question = clean_text_generated(result[0]['generated_text'])
-            question = grammar_correct_question(raw_question)
-            
-            if question and '?' in question:
-                # Get answer
+            if question:
+                # Find answer using QA model
                 try:
                     qa_result = st.session_state.models['qa_pipe'](
                         question=question,
-                        context=context
+                        context=context,
+                        top_k=2
                     )
                     
-                    answer_text = qa_result.get('answer', '').strip()
-                    score = qa_result.get('score', 0)
-                    
-                    if (answer_text and score > 0.2 and
-                        len(answer_text.split()) <= 4 and
-                        answer_text.lower() in context.lower()):
+                    # Try to find a good answer
+                    best_answer = None
+                    for ans in qa_result:
+                        answer_text = ans['answer'].strip()
+                        score = ans['score']
                         
-                        qa_pairs.append((question, clean_entity(answer_text)))
+                        if (score > 0.1 and 
+                            answer_text and 
+                            len(answer_text.split()) <= 4 and
+                            answer_text.lower() in context.lower()):
+                            best_answer = clean_text_generated(answer_text)
+                            break
+                    
+                    if best_answer:
+                        qa_pairs.append((question, best_answer))
                         
                 except Exception:
-                    continue
+                    # Fallback: use entity extraction for answer
+                    entities = extract_entities_from_text(sentence)
+                    if entities:
+                        qa_pairs.append((question, entities[0]))
             
             if len(qa_pairs) >= num_questions:
                 break
                 
     except Exception as e:
-        st.error(f"Question generation error: {e}")
+        st.error(f"Error in QA generation: {e}")
     
     return qa_pairs
 
 def generate_mcqs_from_text(context: str, num_questions: int = 3) -> Dict[str, Any]:
-    """Main function with fast processing"""
+    """Main MCQ generation function"""
     out = {"questions": []}
     
-    qa_pairs = generate_qa_pairs_fast(context, num_questions)
+    # Generate QA pairs
+    qa_pairs = generate_qa_pairs_robust(context, num_questions)
     
     if not qa_pairs:
-        st.info("💡 No questions generated. Try more detailed text.")
+        st.info("💡 No questions generated. Try using more detailed text with clear concepts.")
         return out
     
-    for q, a in qa_pairs:
+    # Process each QA pair
+    for question, answer in qa_pairs:
         # Generate distractors
-        distractors = generate_smart_distractors(q, a, context, 3)
+        distractors = generate_distractors_smart(answer, context, 3)
         
-        # Shuffle options
-        options = distractors + [a]
+        # Create and shuffle options
+        options = distractors + [answer]
         random.shuffle(options)
         
         out["questions"].append({
-            "question": q,
-            "answer": a,
+            "question": question,
+            "answer": answer,
             "options": options
         })
     
@@ -313,69 +291,122 @@ def generate_mcqs_from_text(context: str, num_questions: int = 3) -> Dict[str, A
 
 # Streamlit UI
 def main():
-    st.title("⚡ Fast MCQ Generator")
-    st.markdown("Generate multiple choice questions quickly with optimized models")
+    st.title("🎯 MCQ Generator Pro")
+    st.markdown("Generate multiple choice questions from any text")
+    
+    # Initialize session state
+    if 'models_loaded' not in st.session_state:
+        st.session_state.models_loaded = False
+        st.session_state.models = None
     
     # Load models
-    if 'models' not in st.session_state:
-        with st.spinner("Loading lightweight models for fast performance..."):
+    if not st.session_state.models_loaded:
+        with st.spinner("Loading models... This may take a minute"):
             models = load_models()
             if models is None:
-                st.error("❌ Failed to load models. The app cannot continue.")
+                st.error("""
+                ❌ Failed to load models. Possible solutions:
+                1. Check your internet connection
+                2. Try refreshing the page
+                3. The models might be temporarily unavailable
+                """)
                 return
+            
             st.session_state.models = models
-        st.success("✅ Lightweight models loaded successfully!")
+            st.session_state.models_loaded = True
+        st.success("✅ Models loaded successfully!")
     
     # Sidebar
     with st.sidebar:
         st.header("Settings")
         num_questions = st.slider("Number of Questions", 1, 5, 3)
         
-        st.header("Quick Examples")
+        st.header("Example Texts")
         example_texts = {
-            "Science": """Photosynthesis converts light energy to chemical energy. Plants use chlorophyll in chloroplasts. The process needs carbon dioxide and water. It produces glucose and oxygen. Light reactions make ATP and NADPH. The Calvin cycle makes sugars.""",
-            "History": """The Industrial Revolution started in Britain. Inventions included the steam engine and spinning jenny. Factories grew and cities expanded. Transportation improved with railways."""
+            "Science - Photosynthesis": """
+            Photosynthesis is the process used by plants to convert light energy into chemical energy. 
+            This process occurs in the chloroplasts of plant cells and requires carbon dioxide, water, and sunlight. 
+            The products of photosynthesis are glucose and oxygen. The light-dependent reactions capture energy from sunlight, 
+            while the Calvin cycle uses that energy to produce sugars.
+            """,
+            "History - Industrial Revolution": """
+            The Industrial Revolution began in Great Britain in the late 18th century. 
+            Major inventions included the steam engine, spinning jenny, and power loom. 
+            This period saw a shift from agrarian societies to industrialized urban centers. 
+            Factory systems developed and transportation improved with railways and canals.
+            """,
+            "Technology - Internet": """
+            The Internet is a global network of interconnected computers that communicate using standardized protocols. 
+            It originated from ARPANET, a project funded by the U.S. Department of Defense. 
+            Tim Berners-Lee developed the World Wide Web in 1989, creating the first web browser and server. 
+            The Internet has revolutionized communication, commerce, and information sharing.
+            """
         }
         
-        selected = st.selectbox("Choose Example", list(example_texts.keys()))
-        if st.button("Use Example"):
-            st.session_state.input_text = example_texts[selected]
+        selected_example = st.selectbox("Choose an example", list(example_texts.keys()))
+        if st.button("Load Example"):
+            st.session_state.input_text = example_texts[selected_example]
     
-    # Main input
+    # Main input area
     input_text = st.text_area(
-        "Enter your text:",
-        height=150,
+        "Enter your text below:",
+        height=200,
         value=st.session_state.get('input_text', ''),
-        placeholder="Paste your text here... (Keep it concise for faster processing)"
+        placeholder="Paste your text here... (For best results, use detailed text with clear concepts and proper names)"
     )
     
     # Generate button
-    if st.button("🚀 Generate MCQs", type="primary"):
+    if st.button("🎯 Generate MCQs", type="primary", use_container_width=True):
         if not input_text.strip():
-            st.warning("Please enter some text")
+            st.warning("⚠️ Please enter some text first")
             return
         
-        with st.spinner("Generating questions quickly..."):
+        if len(input_text.split()) < 20:
+            st.warning("📝 For better results, use longer text (at least 50 words)")
+        
+        # Generate MCQs
+        with st.spinner("Generating questions..."):
             results = generate_mcqs_from_text(input_text, num_questions)
         
         # Display results
         if results['questions']:
             st.success(f"✨ Generated {len(results['questions'])} questions!")
+            st.divider()
             
             for i, q in enumerate(results['questions'], 1):
-                st.markdown(f"**{i}. {q['question']}**")
+                st.subheader(f"Question {i}")
+                st.markdown(f"**{q['question']}**")
                 
-                # Display options in columns
+                # Display options in a clean format
                 col1, col2 = st.columns(2)
-                for j, opt in enumerate(q['options']):
-                    with col1 if j % 2 == 0 else col2:
-                        is_correct = opt == q['answer']
-                        emoji = "✅" if is_correct else "⚪"
-                        st.markdown(f"{emoji} **{chr(65+j)}.** {opt}")
+                options_displayed = 0
+                
+                for j, option in enumerate(q['options']):
+                    is_correct = option == q['answer']
+                    emoji = "✅" if is_correct else "⚪"
+                    
+                    if options_displayed % 2 == 0:
+                        with col1:
+                            st.markdown(f"{emoji} **{chr(65 + j)}.** {option}")
+                    else:
+                        with col2:
+                            st.markdown(f"{emoji} **{chr(65 + j)}.** {option}")
+                    
+                    options_displayed += 1
+                
+                # Answer reveal
+                with st.expander("Show Answer"):
+                    st.success(f"**Correct answer: {q['answer']}**")
                 
                 st.divider()
         else:
-            st.info("🔍 No questions generated. Try different text.")
+            st.info("""
+            🔍 No questions could be generated. Try:
+            - Using more detailed text
+            - Including proper names and specific concepts
+            - Ensuring the text has complete sentences
+            - Adding technical or specialized vocabulary
+            """)
 
 if __name__ == "__main__":
     main()

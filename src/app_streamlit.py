@@ -21,8 +21,8 @@ user_text = st.text_area("✍️ Enter your text here:", height=200)
 num_questions = st.slider("Number of questions to generate:", 1, 10, 5)
 
 if st.button("🚀 Generate MCQs"):
-if not user_text.strip():
-    st.warning("Please enter some text before generating questions.")
+    if not user_text.strip():
+        st.warning("Please enter some text before generating questions.")
 
 else:
 with st.spinner("Generating questions... please wait ⏳"):

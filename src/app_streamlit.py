@@ -1,3 +1,17 @@
+Abdullah F, [10/8/2025 4:18 PM]
+streamlit==1.32.0
+transformers==4.36.2
+sentence-transformers==2.2.2
+torch==2.1.2
+spacy==3.7.2
+https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.1/en_core_web_sm-3.7.1-py3-none-any.whl
+pdfplumber==0.10.3
+python-docx==1.1.0
+numpy==1.26.4
+huggingface-hub==0.20.3
+accelerate==0.27.2
+
+Abdullah F, [10/8/2025 4:56 PM]
 import streamlit as st
 import re
 import random
@@ -9,596 +23,399 @@ from sentence_transformers import SentenceTransformer, util
 
 # Page configuration
 st.set_page_config(
-    page_title="Enhanced MCQ Generator",
+    page_title="Smart MCQ Generator",
     page_icon="❓",
     layout="wide"
 )
 
 @st.cache_resource
 def load_models():
-    """Load models for intelligent question generation"""
+    """Load models with better error handling"""
+    device = "cuda" if torch.cuda.is_available() else "cpu"
     
     with st.spinner("Loading enhanced models..."):
-        try:
-            qa_pipe = pipeline(
-                "question-answering",
-                model="distilbert-base-cased-distilled-squad",
-                device=-1
-            )
-            
-            embedder = SentenceTransformer("all-MiniLM-L6-v2", device="cpu")
-            
-            return {
-                'qa_pipe': qa_pipe, 
-                'embedder': embedder
-            }
-            
-        except Exception as e:
-            st.error(f"Model loading error: {str(e)}")
-            return None
-
-def is_valid_answer(answer: str) -> bool:
-    """التحقق من أن الإجابة مقبولة"""
-    if not answer or len(answer) < 2:
-        return False
+        # More reliable question generation model
+        qg_pipe = pipeline(
+            "text2text-generation",
+            model="valhalla/t5-base-qa-qg-hl",  # Better for QG
+            device=0 if device == "cuda" else -1
+        )
+        
+        # More accurate QA model
+        qa_pipe = pipeline(
+            "question-answering",
+            model="distilbert-base-cased-distilled-squad",  # More reliable
+            device=0 if device == "cuda" else -1
+        )
+        
+        embedder = SentenceTransformer("all-MiniLM-L6-v2", device=device)
+        
+        distractor_gen = pipeline(
+            "text2text-generation",
+            model="google/flan-t5-base",
+            device=0 if device == "cuda" else -1
+        )
     
-    # قائمة بالإجابات غير المقبولة
-    invalid_answers = [
-        'unprecedented', 'far deeper', 'working', 'the', 'this', 'that',
-        'process', 'system', 'method', 'edison sought to', 'continuous',
-        'conversion', 'atomic', 'mass', 'far', 'deeper', 'sought', 'to',
-        'and', 'or', 'but', 'in', 'on', 'at', 'for', 'of'
-    ]
-    
-    if any(invalid_word == answer.lower() for invalid_word in invalid_answers):
-        return False
-    
-    # يجب أن تحتوي على أحرف أبجدية
-    if not re.search(r'[a-zA-Z]', answer):
-        return False
-    
-    # يجب أن تكون كلمة ذات معنى (ليست مجرد حروف عشوائية)
-    if len(answer.split()) == 1 and len(answer) < 3:
-        return False
-    
-    return True
-
-def is_meaningful_question(question: str) -> bool:
-    """التحقق من أن السؤال منطقي ومفهوم"""
-    question_lower = question.lower()
-    
-    # قائمة بالأنماط المقبولة للأسئلة
-    valid_patterns = [
-        r'what is [a-z]+',
-        r'where does [a-z]+',
-        r'what does [a-z]+',
-        r'who discovered [a-z]+',
-        r'when did [a-z]+',
-        r'how does [a-z]+',
-        r'why is [a-z]+',
-        r'which [a-z]+',
-        r'what are [a-z]+'
-    ]
-    
-    # يجب أن يطابق السؤال واحداً على الأقل من الأنماط المقبولة
-    if not any(re.search(pattern, question_lower) for pattern in valid_patterns):
-        return False
-    
-    # منع الكلمات غير المجدية في الأسئلة
-    meaningless_words = ['unprecedented', 'continuous', 'atomic', 'mass', 'far deeper', 'sought to']
-    if any(word in question_lower for word in meaningless_words):
-        return False
-    
-    # منع الأسئلة التي تحتوي على كلمات مفردة غير مجدية
-    single_words = ['the', 'and', 'or', 'but', 'in', 'on', 'at']
-    words = question_lower.split()
-    if len(words) < 4:
-        return False
-    
-    return True
+    return {
+        'qg_pipe': qg_pipe, 'qa_pipe': qa_pipe, 
+        'embedder': embedder, 'distractor_gen': distractor_gen
+    }
 
 def validate_qa_pair(question: str, answer: str, context: str) -> bool:
-    """شروط صارمة للتحقق من جودة السؤال والإجابة"""
+    """Validate if the QA pair makes sense"""
     if not question or not answer:
         return False
     
-    # شروط صارمة للجودة
-    if (len(question.split()) < 4 or 
-        len(answer.split()) > 4 or
-        len(answer) < 2):
+    # Basic quality checks
+    if len(question.split()) < 4 or len(answer.split()) > 5:
         return False
     
-    # الإجابة يجب أن تكون في النص
+    # Answer should be in context
     if answer.lower() not in context.lower():
         return False
     
-    # التحقق من جودة الإجابة
-    if not is_valid_answer(answer):
-        return False
-    
-    # التحقق من جودة السؤال
-    if not is_meaningful_question(question):
-        return False
-    
-    # منع أسئلة غير منطقية
-    invalid_question_patterns = [
-        r'continuous conversion of atomic mass',
-        r'far deeper',
-        r'unprecedented',
-        r'edison sought to',
-        r'what is the$',
-        r'what is this$',
-        r'what is that$'
+    # Question should make sense (not be too generic)
+    generic_patterns = [
+        r'what is the', r'what are the', r'who is the', 
+        r'what was the', r'what were the'
     ]
     
-    if any(re.search(pattern, question.lower()) for pattern in invalid_question_patterns):
-        return False
+    question_lower = question.lower()
+    if any(re.search(pattern, question_lower) for pattern in generic_patterns):
+        # For generic questions, ensure answer is specific
+        if len(answer.split()) == 1 and answer.isalpha():
+            return False
     
     return True
 
-def analyze_text_structure(text: str) -> Dict[str, Any]:
-    """Analyze text to identify key concepts, processes, and relationships"""
-    analysis = {
-        'processes': [],
-        'definitions': [],
-        'locations': [],
-        'requirements': [],
-        'products': [],
-        'key_entities': [],
-        'people': [],
-        'inventions': []
-    }
-    
-    sentences = re.split(r'[.!?]+', text)
-    
-    for sentence in sentences:
-        sentence = sentence.strip()
-        if len(sentence.split()) < 5:
-            continue
-            
-        sentence_lower = sentence.lower()
-        
-        # Identify processes
-        if any(word in sentence_lower for word in ['process', 'mechanism', 'system', 'method']):
-            process = extract_process_name(sentence)
-            if process and is_valid_answer(process):
-                analysis['processes'].append(process)
-        
-        # Identify definitions (X is Y)
-        if re.search(r'\b(is|are|was|were|means|refers to)\b', sentence_lower):
-            definition = extract_definition(sentence)
-            if definition and is_valid_answer(definition[1]):
-                analysis['definitions'].append(definition)
-        
-        # Identify locations
-        if any(word in sentence_lower for word in [' occurs in', ' happens in', ' takes place in', ' located in', ' found in']):
-            location = extract_location(sentence)
-            if location and is_valid_answer(location[1]):
-                analysis['locations'].append(location)
-        
-        # Identify requirements
-        if any(word in sentence_lower for word in [' requires ', ' needs ', ' uses ', ' depends on ']):
-            requirement = extract_requirement(sentence)
-            if requirement and is_valid_answer(requirement[1]):
-                analysis['requirements'].append(requirement)
-        
-        # Identify products
-        if any(word in sentence_lower for word in [' produces ', ' creates ', ' generates ', ' results in ']):
-            product = extract_product(sentence)
-            if product and is_valid_answer(product[1]):
-                analysis['products'].append(product)
-        
-        # Identify people
-        people = re.findall(r'\b([A-Z][a-z]+ [A-Z][a-z]+)\b', sentence)
-        for person in people:
-            if is_valid_answer(person):
-                analysis['people'].append(person)
-        
-        # Identify inventions
-        if any(word in sentence_lower for word in ['invented', 'discovered', 'created', 'developed']):
-            invention = extract_invention(sentence)
-            if invention and is_valid_answer(invention):
-                analysis['inventions'].append(invention)
-    
-    # Extract key entities
-    analysis['key_entities'] = extract_key_entities(text)
-    
-    return analysis
-
-def extract_process_name(sentence: str) -> str:
-    """Extract process names from sentences"""
-    patterns = [
-        r'\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s+(?:process|mechanism|system)\b',
-        r'\b(?:process|mechanism)\s+of\s+([^.,!?]+)',
-        r'\b([A-Z][a-z]+\s+[a-z]+)\s+process\b'
-    ]
-    
-    for pattern in patterns:
-        match = re.search(pattern, sentence, re.IGNORECASE)
-        if match:
-            entity = clean_entity(match.group(1))
-            if is_valid_answer(entity):
-                return entity
-    
-    return None
-
-def extract_definition(sentence: str) -> tuple:
-    """Extract definition pairs (concept, definition)"""
-    patterns = [
-        r'\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s+(?:is|are|was|were)\s+([^.,!?]+)',
-        r'\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s+(?:means|refers to)\s+([^.,!?]+)'
-    ]
-    
-    for pattern in patterns:
-        match = re.search(pattern, sentence, re.IGNORECASE)
-        if match:
-            concept = clean_entity(match.group(1))
-            definition = clean_entity(match.group(2))
-            if concept and definition and is_valid_answer(concept) and is_valid_answer(definition):
-                return (concept, definition)
-    
-    return None
-
-def extract_location(sentence: str) -> tuple:
-    """Extract location information"""
-    patterns = [
-        r'\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s+(?:occurs|happens|takes place)\s+in\s+([^.,!?]+)',
-        r'\b(?:found|located)\s+in\s+([^.,!?]+)'
-    ]
-    
-    for pattern in patterns:
-        match = re.search(pattern, sentence, re.IGNORECASE)
-        if match:
-            process = extract_process_name(sentence) or "This process"
-            location = clean_entity(match.group(1) if len(match.groups()) == 1 else match.group(2))
-            if process and location and is_valid_answer(process) and is_valid_answer(location):
-                return (process, location)
-    
-    return None
-
-def extract_requirement(sentence: str) -> tuple:
-    """Extract requirement information"""
-    patterns = [
-        r'\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s+(?:requires|needs)\s+([^.,!?]+)',
-        r'\b(?:process|mechanism)\s+requires\s+([^.,!?]+)'
-    ]
-    
-    for pattern in patterns:
-        match = re.search(pattern, sentence, re.IGNORECASE)
-        if match:
-            process = extract_process_name(sentence) or "This process"
-            requirement = clean_entity(match.group(1) if len(match.groups()) == 1 else match.group(2))
-            if process and requirement and is_valid_answer(process) and is_valid_answer(requirement):
-                return (process, requirement)
-    
-    return None
-
-def extract_product(sentence: str) -> tuple:
-    """Extract product information"""
-    patterns = [
-        r'\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s+(?:produces|creates|generates)\s+([^.,!?]+)',
-        r'\b(?:process|mechanism)\s+produces\s+([^.,!?]+)'
-    ]
-    
-    for pattern in patterns:
-        match = re.search(pattern, sentence, re.IGNORECASE)
-        if match:
-            process = extract_process_name(sentence) or "This process"
-            product = clean_entity(match.group(1) if len(match.groups()) == 1 else match.group(2))
-            if process and product and is_valid_answer(process) and is_valid_answer(product):
-                return (process, product)
-    
-    return None
-
-def extract_invention(sentence: str) -> str:
-    """Extract inventions or discoveries"""
-    patterns = [
-        r'\b([A-Z][a-z]+ [A-Z][a-z]+)\s+(?:invented|discovered|created)\s+([^.,!?]+)',
-        r'\b(?:invention|discovery)\s+of\s+([^.,!?]+)'
-    ]
-    
-    for pattern in patterns:
-        match = re.search(pattern, sentence, re.IGNORECASE)
-        if match:
-            invention = clean_entity(match.group(2) if 'invented' in sentence.lower() else match.group(1))
-            if invention and is_valid_answer(invention):
-                return invention
-    
-    return None
-
-def extract_key_entities(text: str) -> List[str]:
-    """Extract important entities from text"""
+def extract_entities_and_concepts(text: str) -> List[str]:
+    """Extract meaningful entities using multiple strategies"""
     entities = set()
     
-    # Proper nouns
+    # Proper nouns (capitalized phrases)
     proper_nouns = re.findall(r'\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\b', text)
-    for entity in proper_nouns:
-        if is_valid_answer(entity):
-            entities.add(entity)
+    entities.update(proper_nouns)
     
-    # Technical terms
-    technical_terms = re.findall(r'\b([A-Z][a-z]+\s+[a-z]+\s+[a-z]+|[a-z]+\s+[A-Z][a-z]+)\b', text)
-    for term in technical_terms:
-        clean_term = clean_entity(term)
-        if is_valid_answer(clean_term):
-            entities.add(clean_term)
+    # Technical terms (words that appear multiple times)
+    words = re.findall(r'\b[a-zA-Z]{4,}\b', text.lower())
+    from collections import Counter
+    word_freq = Counter(words)
+    important_terms = [word.title() for word, count in word_freq.items() 
+                      if count > 1 and len(word) > 3]
+    entities.update(important_terms)
     
-    # Processes and systems
-    processes = re.findall(r'\b([A-Z][a-z]+\s+(?:process|system|mechanism|cycle))\b', text)
-    for process in processes:
-        clean_process = clean_entity(process)
-        if is_valid_answer(clean_process):
-            entities.add(clean_process)
+    # Key phrases after "called", "known as", "termed"
+    patterns = [
+        r'(?:called|known as|termed|named)\s+([^.,;!?]+)',
+        r'(?:process|concept|phenomenon|theory)\s+of\s+([^.,;!?]+)',
+        r'\b([A-Z][a-z]+\s+[A-Z][a-z]+)\b'  # Multi-word capitalized terms
+    ]
     
-    return list(entities)
+    for pattern in patterns:
+        matches = re.findall(pattern, text, re.IGNORECASE)
+        for match in matches:
+            if isinstance(match, tuple):
+                match = match[0]
+            clean_match = re.sub(r'^(the|a|an)\s+', '', match.strip())
+            if len(clean_match.split()) <= 3:
+                entities.add(clean_match.title())
+    
+    return [e for e in entities if 1 <= len(e.split()) <= 3]
 
-def clean_entity(entity: str) -> str:
-    """Clean and format entity"""
-    if not entity:
-        return ""
+Abdullah F, [10/8/2025 4:56 PM]
+def generate_high_quality_distractors(question: str, correct_answer: str, context: str, num: int = 3) -> List[str]:
+    """Generate much better distractors"""
     
-    entity = re.sub(r'^[^a-zA-Z]*|[^a-zA-Z]*$', '', entity.strip())
-    entity = re.sub(r'^(?:the|a|an)\s+', '', entity, flags=re.IGNORECASE)
+    # Get all potential entities from context
+    all_entities = extract_entities_and_concepts(context)
     
-    words = entity.split()
-    if len(words) > 1:
-        capitalized_words = []
-        for word in words:
-            if word.lower() in ['and', 'or', 'the', 'of', 'in', 'on', 'for', 'to']:
-                capitalized_words.append(word.lower())
-            else:
-                capitalized_words.append(word.capitalize())
-        entity = ' '.join(capitalized_words)
+    # Remove correct answer
+    candidates = [e for e in all_entities if e.lower() != correct_answer.lower()]
+    
+    # Categorize question type for better distractor selection
+    question_lower = question.lower()
+    
+    if re.search(r'\b(what|which)\b.*\b(called|named|termed)\b', question_lower):
+        # For "what is X called" questions - use other named entities
+        distractors = [c for c in candidates if c != correct_answer][:num*2]
+    
+    elif re.search(r'\b(who)\b', question_lower):
+        # For "who" questions - use other person names
+        distractors = [c for c in candidates if len(c.split()) >= 2][:num*2]
+    
+    elif re.search(r'\b(when)\b', question_lower):
+        # For "when" questions
+        distractors = ["19th century", "20th century", "recently", "in the past"]
+    
     else:
-        entity = entity.capitalize()
+        # General case - use semantic similarity
+        distractors = get_semantic_distractors(correct_answer, candidates, num*2)
     
-    return entity
+    # Use LM for final refinement if needed
+    if len(distractors) < num:
+        lm_distractors = generate_lm_distractors_enhanced(question, correct_answer, context)
+        distractors.extend(lm_distractors)
+    
+    # Final filtering and selection
+    return select_best_distractors_enhanced(distractors, correct_answer, question, num)
 
-def generate_high_quality_distractors(correct_answer: str, question: str, context: str) -> List[str]:
-    """مشتتات عالية الجودة مع شروط صارمة"""
-    
-    # إذا كانت الإجابة غير مقبولة، نعود بمشتتات افتراضية جيدة
-    if not is_valid_answer(correct_answer):
-        return ["Cellular Respiration", "Protein Synthesis", "Water Absorption"]
-    
-    # قاعدة معرفية موسعة
-    knowledge_base = {
-        'photosynthesis': ['Cellular Respiration', 'Chemosynthesis', 'Transpiration'],
-        'respiration': ['Photosynthesis', 'Fermentation', 'Digestion'],
-        'chloroplast': ['Mitochondria', 'Nucleus', 'Ribosomes'],
-        'mitochondria': ['Chloroplasts', 'Nucleus', 'Endoplasmic Reticulum'],
-        'energy': ['Matter', 'Force', 'Power'],
-        'electricity': ['Magnetism', 'Gravity', 'Heat'],
-        'current': ['Voltage', 'Resistance', 'Power'],
-        'voltage': ['Current', 'Resistance', 'Energy'],
-        'invention': ['Discovery', 'Innovation', 'Creation'],
-        'scientist': ['Researcher', 'Inventor', 'Scholar'],
-        'light': ['Heat', 'Sound', 'Electricity'],
-        'power': ['Energy', 'Force', 'Strength'],
-        'system': ['Process', 'Method', 'Technique'],
-        'process': ['System', 'Method', 'Procedure']
-    }
-    
-    # البحث في قاعدة المعرفة
-    answer_lower = correct_answer.lower()
-    for key, distractors in knowledge_base.items():
-        if key in answer_lower:
-            valid_distractors = [d for d in distractors if d.lower() != answer_lower and is_valid_answer(d)]
-            return valid_distractors[:3]
-    
-    # استخدام كيانات من النص كمشتتات
-    entities = extract_key_entities(context)
-    valid_entities = [e for e in entities if e.lower() != answer_lower and is_valid_answer(e)]
-    
-    if len(valid_entities) >= 3:
-        return valid_entities[:3]
-    
-    # مشتتات افتراضية عالية الجودة
-    default_distractors = ["Cellular Process", "Biological System", "Physical Phenomenon"]
-    return [d for d in default_distractors if d.lower() != answer_lower][:3]
+def generate_lm_distractors_enhanced(question: str, answer: str, context: str) -> List[str]:
+    """Enhanced LM distractor generation with better prompting"""
+    try:
+        prompt = f"""Based on this context: "{context[:500]}"
 
-def generate_intelligent_questions(analysis: Dict[str, Any], context: str, num_questions: int = 3) -> List[tuple]:
-    """Generate intelligent, specific questions based on text analysis"""
-    questions = []
-    
-    # Generate definition questions
-    for concept, definition in analysis['definitions'][:2]:
-        question = f"What is {concept}?"
-        answer = definition
-        if validate_qa_pair(question, answer, context):
-            questions.append((question, answer))
-    
-    # Generate location questions
-    for process, location in analysis['locations'][:2]:
-        question = f"Where does {process} occur?"
-        answer = location
-        if validate_qa_pair(question, answer, context):
-            questions.append((question, answer))
-    
-    # Generate requirement questions
-    for process, requirement in analysis['requirements'][:2]:
-        question = f"What does {process} require?"
-        answer = requirement
-        if validate_qa_pair(question, answer, context):
-            questions.append((question, answer))
-    
-    # Generate product questions
-    for process, product in analysis['products'][:2]:
-        question = f"What does {process} produce?"
-        answer = product
-        if validate_qa_pair(question, answer, context):
-            questions.append((question, answer))
-    
-    # Generate people questions
-    for person in analysis['people'][:2]:
-        question = f"Who is {person}?"
-        answer = person
-        if validate_qa_pair(question, answer, context):
-            questions.append((question, answer))
-    
-    # Generate invention questions
-    for invention in analysis['inventions'][:2]:
-        question = f"What was invented by {invention}?" if ' ' in invention else f"What is {invention}?"
-        answer = invention
-        if validate_qa_pair(question, answer, context):
-            questions.append((question, answer))
-    
-    # Generate process identification questions
-    for process in analysis['processes'][:2]:
-        question = f"What is the name of the process that {get_process_description(process, context)}?"
-        answer = process
-        if validate_qa_pair(question, answer, context):
-            questions.append((question, answer))
-    
-    return questions[:num_questions]
+For the question: "{question}"
+The correct answer is: "{answer}"
 
-def get_process_description(process: str, context: str) -> str:
-    """Get a description of what the process does"""
-    sentences = re.split(r'[.!?]+', context)
-    for sentence in sentences:
-        if process.lower() in sentence.lower():
-            if 'convert' in sentence.lower():
-                return "converts energy"
-            elif 'produce' in sentence.lower():
-                return "produces energy"
-            elif 'release' in sentence.lower():
-                return "releases energy"
-            elif 'store' in sentence.lower():
-                return "stores energy"
-            elif 'generate' in sentence.lower():
-                return "generates electricity"
-    
-    return "transforms materials"
+Generate 3 plausible but incorrect alternatives that:
+1. Are related to the topic but clearly wrong
+2. Are 1-3 words each
+3. Sound realistic but are factually incorrect
+4. Are different from each other
 
+Distractors:"""
+        
+        result = st.session_state.models['distractor_gen'](
+            prompt,
+            max_length=150,
+            num_return_sequences=1,
+            temperature=0.7,
+            do_sample=True,
+            top_p=0.9
+        )
+        
+        generated = result[0]['generated_text']
+        # Improved extraction
+        lines = [line.strip() for line in generated.split('\n') if line.strip()]
+        distractors = []
+        
+        for line in lines:
+            # Remove numbering and bullets
+            clean_line = re.sub(r'^\d+[\.\)]\s*', '', line)
+            clean_line = re.sub(r'^[\-\*]\s*', '', clean_line)
+            clean_line = clean_text_generated(clean_line)
+            
+            if (clean_line and 
+                1 <= len(clean_line.split()) <= 3 and
+                clean_line.lower() != answer.lower() and
+                len(clean_line) > 2):
+                distractors.append(clean_line)
+        
+        return distractors[:3]
+    except:
+        return []
+
+def get_semantic_distractors(answer: str, candidates: List[str], num: int) -> List[str]:
+    """Get semantically appropriate distractors"""
+    if not candidates:
+        return []
+    
+    try:
+        sbert = st.session_state.models['embedder']
+        cand_emb = sbert.encode(candidates, convert_to_tensor=True)
+        ans_emb = sbert.encode([answer], convert_to_tensor=True)
+        sims = util.pytorch_cos_sim(cand_emb, ans_emb).squeeze(1).cpu().numpy()
+        
+        # Select candidates with good semantic relationship
+        selected = []
+        for i, sim in enumerate(sims):
+            if 0.4 <= sim <= 0.8:  # Tighter similarity range
+                selected.append((candidates[i], sim))
+        
+        # Sort by similarity and take best ones
+        selected.sort(key=lambda x: x[1], reverse=True)
+        return [item[0] for item in selected[:num]]
+    
+    except:
+        return candidates[:num]
+
+Abdullah F, [10/8/2025 4:56 PM]
+def select_best_distractors_enhanced(distractors: List[str], answer: str, question: str, num: int) -> List[str]:
+    """Enhanced distractor selection"""
+    if not distractors:
+        return ["Alternative method", "Different approach", "Other technique"][:num]
+    
+    # Remove poor quality distractors
+    filtered = []
+    question_words = set(question.lower().split())
+    
+    for distractor in distractors:
+        d_lower = distractor.lower()
+        
+        # Skip if too similar to answer or question
+        if (d_lower == answer.lower() or 
+            any(qw in d_lower for qw in question_words if len(qw) > 3) or
+            len(distractor) < 2):
+            continue
+        
+        # Skip generic words
+        generic_terms = {"the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for"}
+        if all(word in generic_terms for word in d_lower.split()):
+            continue
+            
+        filtered.append(distractor)
+    
+    # Ensure diversity
+    final = []
+    for distractor in filtered:
+        if not any(util in distractor.lower() for util in final):
+            final.append(distractor)
+        if len(final) >= num:
+            break
+    
+    # Fill remaining slots if needed
+    while len(final) < num:
+        fallback = f"Option {len(final) + 1}"
+        if fallback not in final:
+            final.append(fallback)
+    
+    return final[:num]
+
+def clean_text_generated(txt: str) -> str:
+    """Clean generated text"""
+    if not txt:
+        return ""
+    txt = txt.strip()
+    txt = re.sub(r'\s+', ' ', txt)
+    txt = re.sub(r'^[\'"]|[\'"]$', '', txt)
+    return txt
+
+def generate_qa_pairs_enhanced(context: str, num_questions: int = 3) -> List[tuple]:
+    """Enhanced QA pair generation with validation"""
+    qa_pairs = []
+    
+    try:
+        # Use highlight-based question generation
+        sentences = re.split(r'[.!?]+', context)
+        sentences = [s.strip() for s in sentences if len(s.strip().split()) > 8]
+        
+        for sentence in sentences[:num_questions * 3]:  # Try more sentences
+            # Enhanced prompt for better questions
+            prompt = f"Generate a specific question about: {sentence}"
+            
+            result = st.session_state.models['qg_pipe'](
+                prompt,
+                max_length=80,
+                num_return_sequences=1,
+                temperature=0.8,
+                do_sample=True
+            )
+            
+            question = clean_text_generated(result[0]['generated_text'])
+            
+            if question and '?' in question and len(question.split()) >= 4:
+                # Get answer with validation
+                try:
+                    qa_result = st.session_state.models['qa_pipe'](
+                        question=question,
+                        context=context,
+                        top_k=3  # Get multiple possible answers
+                    )
+                    
+                    # Try to find the best answer
+                    best_answer = None
+                    for ans in qa_result:
+                        answer_text = ans['answer'].strip()
+                        score = ans['score']
+                        
+                        if (score > 0.3 and  # Higher confidence threshold
+                            validate_qa_pair(question, answer_text, context)):
+                            best_answer = answer_text
+                            break
+                    
+                    if best_answer:
+                        qa_pairs.append((question, best_answer))
+                        
+                except Exception as e:
+                    continue
+            
+            if len(qa_pairs) >= num_questions:
+                break
+                
+    except Exception as e:
+        st.error(f"Error in QA generation: {e}")
+    
+    return qa_pairs
+
+Abdullah F, [10/8/2025 4:56 PM]
 def generate_mcqs_from_text(context: str, num_questions: int = 3) -> Dict[str, Any]:
-    """Main MCQ generation function"""
+    """Main function with enhanced validation"""
     out = {"questions": []}
     
-    # Analyze text structure
-    analysis = analyze_text_structure(context)
-    
-    # Generate intelligent questions
-    qa_pairs = generate_intelligent_questions(analysis, context, num_questions)
+    qa_pairs = generate_qa_pairs_enhanced(context, num_questions)
     
     if not qa_pairs:
-        st.info("💡 No valid questions generated. Please use text with clear concepts, processes, and proper names.")
+        st.info("🔍 No valid questions generated. Try more detailed text.")
         return out
     
-    # Process each QA pair
-    for question, answer in qa_pairs:
+    for q, a in qa_pairs:
         # Generate high-quality distractors
-        distractors = generate_high_quality_distractors(answer, question, context)
+        distractors = generate_high_quality_distractors(q, a, context, 3)
         
-        # Create and shuffle options
-        options = distractors + [answer]
+        # Shuffle options
+        options = distractors + [a]
         random.shuffle(options)
         
         out["questions"].append({
-            "question": question,
-            "answer": answer,
+            "question": q,
+            "answer": a,
             "options": options,
-            "quality": "validated"
+            "validated": True
         })
     
     return out
 
 # Streamlit UI
 def main():
-    st.title("🎯 Enhanced MCQ Generator")
-    st.markdown("Generate high-quality multiple choice questions with validated answers and smart distractors")
+    st.title("🧠 Smart MCQ Generator")
+    st.markdown("Generate high-quality multiple choice questions with validated answers")
     
-    # Initialize models
     if 'models' not in st.session_state:
         models = load_models()
         if models is None:
-            st.error("❌ Failed to load models. Please refresh the page.")
             return
         st.session_state.models = models
-        st.success("✅ Enhanced models loaded successfully!")
+        st.success("✅ Enhanced models loaded!")
     
-    # Sidebar
     with st.sidebar:
         st.header("Settings")
-        num_questions = st.slider("Number of Questions", 1, 5, 3)
+        num_questions = st.slider("Questions", 1, 5, 3)
         
-        st.header("Quality Examples")
+        st.header("Better Examples")
         example_texts = {
-            "Photosynthesis": """
-            Photosynthesis is the process used by plants to convert light energy into chemical energy. 
-            This process occurs in the chloroplasts of plant cells. Photosynthesis requires carbon dioxide, water, and sunlight. 
-            The products of photosynthesis are glucose and oxygen. Chlorophyll is the green pigment that absorbs sunlight.
-            """,
-            "Thomas Edison": """
-            Thomas Edison was an American inventor who developed many devices. 
-            He invented the practical electric light bulb and the phonograph. 
-            Edison also created the first industrial research laboratory in Menlo Park. 
-            His work helped establish the electrical power distribution system.
-            """,
-            "Electricity": """
-            Electricity is the flow of electrical power or charge. It is a form of energy that results from the movement of electrons. 
-            Electrical current flows through conductors like copper wires. Voltage is the force that drives the current, 
-            while resistance opposes the flow. Electrical power is measured in watts.
-            """
+            "Radioactivity": """The discovery of radioactivity began with Henri Becquerel in 1896. He found that uranium salts emitted rays that could darken photographic plates. Marie Curie later coined the term "radioactivity" and discovered the elements polonium and radium. The process involves unstable atomic nuclei releasing radiation and heat as they decay. There are three main types of radiation: alpha, beta, and gamma rays.""",
+            "Photosynthesis": """Photosynthesis is the biological process that converts light energy into chemical energy. Plants use chlorophyll in their chloroplasts to capture sunlight. The process requires carbon dioxide and water, producing glucose and oxygen as byproducts. The light-dependent reactions occur in the thylakoid membranes, while the Calvin cycle takes place in the stroma."""
         }
         
-        selected_example = st.selectbox("Choose example", list(example_texts.keys()))
+        selected = st.selectbox("Examples", list(example_texts.keys()))
         if st.button("Load Example"):
-            st.session_state.input_text = example_texts[selected_example]
+            st.session_state.input_text = example_texts[selected]
     
-    # Main input
     input_text = st.text_area(
-        "Enter your text:",
+        "Enter detailed text:",
         height=200,
-        value=st.session_state.get('input_text', ''),
-        placeholder="Paste text with clear concepts, processes, inventions, or scientific explanations..."
+        value=st.session_state.get('input_text', '')
     )
     
-    # Generate button
-    if st.button("🚀 Generate Validated MCQs", type="primary"):
+    if st.button("🎯 Generate Smart MCQs"):
         if not input_text.strip():
-            st.warning("⚠️ Please enter some text")
+            st.warning("Please enter text")
             return
         
-        with st.spinner("Analyzing text and generating validated questions..."):
+        with st.spinner("Generating validated questions..."):
             results = generate_mcqs_from_text(input_text, num_questions)
         
-        # Display results
-        if results['questions']:
-            st.success(f"🎉 Generated {len(results['questions'])} validated questions!")
-            st.divider()
+        st.subheader(f"Validated Questions ({len(results['questions'])})")
+        
+        for i, q in enumerate(results['questions'], 1):
+            st.markdown(f"{i}. {q['question']}")
             
-            for i, q in enumerate(results['questions'], 1):
-                st.subheader(f"Question {i}")
-                st.info(f"**{q['question']}**")
-                
-                # Display options in columns
-                col1, col2 = st.columns(2)
-                for j, option in enumerate(q['options']):
-                    is_correct = option == q['answer']
-                    emoji = "✅" if is_correct else "⚪"
-                    
-                    with (col1 if j % 2 == 0 else col2):
-                        st.markdown(f"{emoji} **{chr(65 + j)}.** {option}")
-                
-                # Enhanced explanation
-                with st.expander("View Validation Details"):
-                    st.success(f"**Correct Answer:** {q['answer']}")
-                    st.write("✅ **Answer Validation:** Passed quality checks")
-                    st.write("✅ **Question Quality:** Meaningful and specific")
-                    st.write("✅ **Distractors:** Contextually relevant")
-                    st.write("✅ **Text Support:** Answer found in context")
-                
-                st.divider()
-        else:
-            st.info("""
-            💡 **Tips for better validated questions:**
-            - Use text with clear definitions (X is Y)
-            - Include specific processes and inventions
-            - Mention people and their contributions
-            - Describe requirements and products
-            - Use proper names and technical terms
-            - Avoid vague or abstract language
-            """)
+            for j, opt in enumerate(q['options']):
+                is_correct = opt == q['answer']
+                emoji = "✅" if is_correct else "⚪️"
+                st.write(f"{emoji} {chr(65+j)}. {opt}")
+            
+            st.divider()
 
-if __name__ == "__main__":
+if name == "main":
     main()

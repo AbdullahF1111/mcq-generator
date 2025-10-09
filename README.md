@@ -69,8 +69,8 @@ This project was developed in **two stages**, showcasing both *research-grade NL
 
 ---
 
-#### 🧠 1. Main Research Pipeline (LMQG-based)
-**File:** `mcq_pipeline_final_v2.py`  
+### 🧠 1. Main Research Pipeline (LMQG-based)
+**File:** `notebooks/mcq_generator.ipynb`  
 **Environment:** Colab / Local (GPU recommended)
 
 - **Core Model:** `lmqg/t5-base-squad-qg`  

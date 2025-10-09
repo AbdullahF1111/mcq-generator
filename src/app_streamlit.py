@@ -1,4 +1,4 @@
-Abdullah F, [10/9/2025 1:16 AM]
+
 import streamlit as st
 import re
 import random
@@ -108,7 +108,6 @@ def extract_key_phrases(context: str) -> List[str]:
     
     return list(set(filtered_phrases))
 
-Abdullah F, [10/9/2025 1:16 AM]
 def generate_smart_distractors(question: str, answer: str, context: str, num_distractors: int = 3) -> List[str]:
     """Generate high-quality distractors using multiple strategies"""
     
@@ -200,7 +199,6 @@ Requirements:
 - Make them semantically related but clearly wrong
 - Return only a comma-separated list
 
-Abdullah F, [10/9/2025 1:16 AM]
 Distractors:"""
         
         result = st.session_state.models['distractor_gen'](
@@ -296,7 +294,6 @@ def select_best_distractors(distractors: List[str], answer: str, num: int) -> Li
     except:
         return distractors[:num]
 
-Abdullah F, [10/9/2025 1:16 AM]
 def generate_qa_pairs(context: str, num_questions: int = 3) -> List[tuple]:
     """Generate question-answer pairs"""
     qa_pairs = []
@@ -381,7 +378,6 @@ def generate_mcqs_from_text(context: str, num_questions: int = 3) -> Dict[str, A
     
     return out
 
-Abdullah F, [10/9/2025 1:16 AM]
 # Streamlit UI
 def main():
     st.title("🧠 Enhanced MCQ Generator")
@@ -454,5 +450,5 @@ def main():
                 
                 st.divider()
 
-if name == "main":
+if __name__ == "__main__":
     main()

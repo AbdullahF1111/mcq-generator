@@ -67,7 +67,11 @@ Meanwhile, the **LMQG pipeline** remains as a **research-grade backbone**, demon
 ---
 
 
-## 🧠 Example Output
+
+
+## 📸 Streamlit Interface
+
+### 🧠 Example Output
 
 **Input:**
 > "The invention of the mechanical clock revolutionized timekeeping. Before clocks, people relied on sundials and water clocks. In the 14th century, European inventors created gears and weights to measure time more accurately."
@@ -79,23 +83,12 @@ Meanwhile, the **LMQG pipeline** remains as a **research-grade backbone**, demon
   - 16th century  
   - 18th century  
   - 12th century
-  - 
----
-
-## 📸 Streamlit Interface
 
 ### ✍️ User Input
 Paste or upload any English paragraph to generate questions.
 
 ### ⚙️ Generated MCQs
 Each question is displayed with one correct answer and three distractors.
-
-#### 🧪 Example Output
-Q1. Who invented the mechanical clock?
-A) Galileo
-B) European inventors ✅
-C) Newton
-D) Pythagoras
 
 > 💡 *Note: Distractors are generated heuristically and may vary in quality (research prototype).*
 

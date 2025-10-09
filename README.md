@@ -226,15 +226,6 @@ The app is already deployed at:
 
 - 👉 [Streamlit App](https://mcq-generator-ubnjdcuymvze6drflrwtvy.streamlit.app/) 
 
-To deploy your own:
-
-- Push your repo to GitHub.
-
-- Go to streamlit.io/cloud
-.
-
-Choose your repo and select src/app_streamlit.py as the entry file.
-
 ### 🔬 Limitations & Future Work
 
 - Distractors are heuristically generated — can be generic or low-quality.

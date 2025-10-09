@@ -224,7 +224,7 @@ streamlit run src/app_streamlit.py
 
 The app is already deployed at:
 
-- 👉 [GitHub Repo](https://github.com/abdullahf1111/mcq-generator)
+- 👉 [Streamlit App](https://mcq-generator-ubnjdcuymvze6drflrwtvy.streamlit.app/) 
 
 To deploy your own:
 

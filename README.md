@@ -201,15 +201,6 @@ Together, they highlight your strengths as both a **data scientist** and a **pra
 
 ---
 
-
-## 📈 Future Work
-
-- Improve distractor generation using fine-tuned LLMs.  
-- Integrate ranking models for question quality scoring.  
-- Add multi-language support and document-based question generation.  
-
----
-
 ## 💻 Run Locally
 
 ```bash
@@ -247,14 +238,12 @@ Choose your repo and select src/app_streamlit.py as the entry file.
 ### 🔬 Limitations & Future Work
 
 - Distractors are heuristically generated — can be generic or low-quality.
-
-- Plan to fine-tune distractor generation using larger QG datasets.
-
+- Plan to fine-tune distractor generation using larger QG datasets & Improve it.
 - Add multilingual support with mT5 or flan-t5-xl.
-
 - Evaluate question quality using BLEU/ROUGE metrics.
-
-- Expand to domain-specific MCQs (e.g., medicine, education, history).
+- Expand to domain-specific MCQs (e.g., medicine, education, history)
+- Integrate ranking models for question quality scoring.  
+  
 
 👤 Author
 

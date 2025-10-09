@@ -10,7 +10,7 @@ from sentence_transformers import SentenceTransformer, util
 
 # Page configuration
 st.set_page_config(
-    page_title="Enhanced MCQ Generator",
+    page_title="MCQ Generator",
     page_icon="❓",
     layout="wide"
 )
@@ -380,7 +380,7 @@ def generate_mcqs_from_text(context: str, num_questions: int = 3) -> Dict[str, A
 
 # Streamlit UI
 def main():
-    st.title("🧠 Enhanced MCQ Generator")
+    st.title("🧠 MCQ Generator")
     st.markdown("Enter text to automatically generate high-quality multiple choice questions")
     
     # Load models

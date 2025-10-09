@@ -220,13 +220,14 @@ streamlit run src/app_streamlit.py
 
 ```
 
+
 ### 🌐 Deployment (Optional)
 
 The app is already deployed at:
 
----
+- 👉 [Streamlit App](https://mcq-generator-ubnjdcuymvze6drflrwtvy.streamlit.app/)
 
-- 👉 [Streamlit App](https://mcq-generator-ubnjdcuymvze6drflrwtvy.streamlit.app/) 
+  
 
 ### 🔬 Limitations & Future Work
 

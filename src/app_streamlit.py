@@ -399,5 +399,6 @@ def main():
                 st.write(f"{emoji} {chr(65+j)}. {opt}")
             
             st.divider()
-            if name == "main":
-               main()
+            
+if __name__ == "__main__":
+    main()

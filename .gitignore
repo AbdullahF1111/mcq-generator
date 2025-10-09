@@ -1,33 +1,106 @@
 
-Byte-compiled / cache
-pycache/
+# --- Python ---
+__pycache__/
 *.py[cod]
 *.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+.eggs/
+build/
+dist/
+*.manifest
+*.spec
 
-Environment files
+# --- Virtual environments ---
 .env
-*.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+pip-wheel-metadata/
+*.pyenv
 
-Notebooks checkpoints
-.ipynb_checkpoints/
+# --- Jupyter / Colab ---
+.ipynb_checkpoints
+*.ipynb_checkpoints
+*.ipynb_save
+.DS_Store
 
-Models and large files
-models/
-*.safetensors
+# --- Model weights / checkpoints ---
 *.bin
-*.json
 *.pt
+*.pth
+*.ckpt
+*.h5
+*.onnx
+*.tflite
+*.joblib
+*.pkl
+*.model
+*.zip
 
-OS / Editor files
+# --- Cache & temporary files ---
+.cache/
+*.log
+*.tmp
+*.temp
+*.bak
+*.swp
+*.swo
+logs/
+tmp/
+data/cache/
+**/__pycache__/
+
+# --- Output files ---
+*.json
+*.csv
+*.tsv
+*.xlsx
+*.pdf
+*.docx
+output/
+results/
+mcq_output_final_v2.json
+*.txt
+
+# --- Local dev files ---
+.idea/
+.vscode/
+*.code-workspace
+
+# --- Streamlit ---
+.streamlit/secrets.toml
+.streamlit/config.toml
+.streamlit/state.json
+
+# --- OS / system files ---
 .DS_Store
 Thumbs.db
+desktop.ini
 
-Logs
-*.log
+# --- Hugging Face cache ---
+/root/.cache/huggingface/
+/home/*/.cache/huggingface/
+~/.cache/huggingface/
+~/.cache/torch/
 
-Temporary files
-*.tmp
-*.bak
+# --- Other data folders ---
+data/
+datasets/
+notebooks/
+*.tar.gz
+*.tgz
+*.tar
 
-
-
+# --- Colab or local logs ---
+colab_output/
+saved_models/
+checkpoints/
+model_outputs/
+runs/
+wandb/

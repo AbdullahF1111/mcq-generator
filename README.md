@@ -66,13 +66,6 @@ Meanwhile, the **LMQG pipeline** remains as a **research-grade backbone**, demon
 
 ---
 
-## 📈 Future Work
-
-- Improve distractor generation using fine-tuned LLMs.  
-- Integrate ranking models for question quality scoring.  
-- Add multi-language support and document-based question generation.  
-
----
 
 ## 🧠 Example Output
 
@@ -85,18 +78,9 @@ Meanwhile, the **LMQG pipeline** remains as a **research-grade backbone**, demon
   - 14th century ✅  
   - 16th century  
   - 18th century  
-  - 12th century  
-
+  - 12th century
+  - 
 ---
-
-## 🧩 Run Locally
-
-```bash
-git clone https://github.com/abdullahf1111/mcq-generator.git
-cd mcq-generator
-pip install -r requirements.txt
-streamlit run src/app_streamlit.py
-
 
 ## 📸 Streamlit Interface
 
@@ -221,6 +205,15 @@ This two-tier design reflects a **real-world MLOps trade-off**:
 
 Together, they highlight your strengths as both a **data scientist** and a **practical ML engineer**.
 
+
+---
+
+
+## 📈 Future Work
+
+- Improve distractor generation using fine-tuned LLMs.  
+- Integrate ranking models for question quality scoring.  
+- Add multi-language support and document-based question generation.  
 
 ---
 

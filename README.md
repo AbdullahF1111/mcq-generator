@@ -4,7 +4,7 @@ A **research-driven, end-to-end NLP project** that automatically generates **mul
 
 It demonstrates a **complete natural language processing pipeline** — from text understanding and question generation to distractor creation and semantic filtering — all wrapped in an **interactive Streamlit web app**.
 
-👉 **Live Demo:** [Streamlit App](https://mcq-generator-ubnjdcuymvze6drflrwtvy.streamlit.app/)  
+👉 **Live Demo:** [[Streamlit App](https://mcq-generator-ubnjdcuymvze6drflrwtvy.streamlit.app/) ](https://mcq-generator-ubnjdcuymvze6drflrwtvy.streamlit.app/) 
 📂 **Repository:** [GitHub Repo](https://github.com/abdullahf1111/mcq-generator)
 
 ---
@@ -224,7 +224,7 @@ streamlit run src/app_streamlit.py
 
 The app is already deployed at:
 
-- 👉 https://mcq-generator-ubnjdcuymvze6drflrwtvy.streamlit.app/
+- 👉 [https://mcq-generator-ubnjdcuymvze6drflrwtvy.streamlit.app/](https://mcq-generator-ubnjdcuymvze6drflrwtvy.streamlit.app/)
 
 To deploy your own:
 

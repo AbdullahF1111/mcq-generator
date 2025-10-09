@@ -14,12 +14,11 @@ It demonstrates a **complete natural language processing pipeline** — from tex
 | Stage | Description |
 |--------|--------------|
 | **1️⃣ Data Input** | User provides a paragraph or educational text. |
-| **2️⃣ Question Generation (QG)** | Model (`lmqg/t5-base-squad-qg`) generates question–answer pairs. |
-| **3️⃣ Answer Validation** | QA model (`deepset/roberta-base-squad2`) validates answers using context. |
-| **4️⃣ Distractor Generation** | `Sentence-BERT` + `Flan-T5` generate similar but incorrect options. |
-| **5️⃣ Streamlit Interface** | Interactive app for input, generation, and visualization. |
-
----
+| **2️⃣ Question Generation (QG)** | Transformer models (LMQG or T5-based) generate question–answer pairs. |
+| **3️⃣ Answer Validation** | A QA model (`deepset/roberta-base-squad2`) validates answers using contextual evidence. |
+| **4️⃣ Distractor Generation** | `Sentence-BERT` + `Flan-T5` generate plausible but incorrect options. |
+| **5️⃣ Semantic Filtering** | Filters ensure the distractors are meaningful, short, and diverse. |
+| **6️⃣ Streamlit Interface** | Interactive app for text input, generation, and visualization of MCQs. |
 
 ---
 
@@ -27,13 +26,77 @@ It demonstrates a **complete natural language processing pipeline** — from tex
 
 | Component | Model / Library | Purpose |
 |------------|----------------|----------|
-| **Question Generation** | `lmqg/t5-base-squad-qg` | Generates question–answer pairs |
+| **Question Generation** | `lmqg/t5-base-squad-qg` (research) / `mrm8488/t5-base-finetuned-question-generation-ap` (app) | Generates question–answer pairs |
 | **Answer Extraction** | `deepset/roberta-base-squad2` | Validates and extracts accurate answer spans |
 | **Distractor Generation** | `google/flan-t5-base`, `Sentence-BERT` | Produces contextually similar but incorrect options |
-| **Semantic Filtering** | `spacy`, cosine similarity | Ensures diversity and avoids repetition |
-| **Web App** | `Streamlit` | Interactive user interface for testing & demo |
+| **Semantic Filtering** | `spacy`, cosine similarity | Ensures diversity, relevance, and non-overlap |
+| **Web Interface** | `Streamlit` | User-friendly interface for interactive demos |
 
 ---
+
+## 🧩 Architecture Overview
+
+This project includes **two complementary pipelines**:
+
+| Version | Description | Target |
+|----------|--------------|--------|
+| **🔬 Research Pipeline (LMQG)** | Uses `lmqg/t5-base-squad-qg` for joint Question–Answer generation and semantic distractor creation. High-quality but computationally heavy. | Research / Colab (GPU) |
+| **⚡ Streamlit App Pipeline** | Uses smaller modular models (`T5`, `RoBERTa`, `Flan-T5`) for QG, QA, and distractor generation. Optimized for CPU and deployment on Streamlit Cloud. | Real-time Web App |
+
+---
+
+## 💡 Why Two Pipelines?
+
+Deploying large NLP models like **LMQG** is challenging on limited environments (e.g., Streamlit Cloud).  
+Therefore, the app uses a **lightweight modular version** that combines smaller transformer models and heuristic methods to ensure:
+- ✅ Fast inference on CPU  
+- ✅ Low memory usage  
+- ✅ Smooth user experience  
+
+Meanwhile, the **LMQG pipeline** remains as a **research-grade backbone**, demonstrating your capability to build, optimize, and validate complex transformer architectures.
+
+---
+
+## 🧰 Tech Stack
+
+- **Languages:** Python  
+- **Core Libraries:** Transformers, Sentence-Transformers, spaCy, Streamlit  
+- **ML Models:** T5, RoBERTa, Flan-T5, LMQG, MiniLM  
+- **Deployment:** Streamlit Cloud / Local Execution  
+
+---
+
+## 📈 Future Work
+
+- Improve distractor generation using fine-tuned LLMs.  
+- Integrate ranking models for question quality scoring.  
+- Add multi-language support and document-based question generation.  
+
+---
+
+## 🧠 Example Output
+
+**Input:**
+> "The invention of the mechanical clock revolutionized timekeeping. Before clocks, people relied on sundials and water clocks. In the 14th century, European inventors created gears and weights to measure time more accurately."
+
+**Generated MCQ:**
+- **Question:** When did the invention of the mechanical clock revolutionize timekeeping?  
+- **Options:**
+  - 14th century ✅  
+  - 16th century  
+  - 18th century  
+  - 12th century  
+
+---
+
+## 🧩 Run Locally
+
+```bash
+git clone https://github.com/abdullahf1111/mcq-generator.git
+cd mcq-generator
+pip install -r requirements.txt
+streamlit run src/app_streamlit.py
+
 
 ## 📸 Streamlit Interface
 
